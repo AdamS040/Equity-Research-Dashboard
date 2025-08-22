@@ -1,19 +1,32 @@
 import pandas as pd
 import numpy as np
 
-def simple_long_only(prices: pd.DataFrame, scores: pd.DataFrame, top_n: int = 20):
+def backtest_top_n(prices: pd.DataFrame, scores: pd.DataFrame, top_n: int = 20):
     """
-    Very basic backtest:
-    - Rebalance monthly
-    - Long top-N by score
-    - Equal weight portfolio
+    Backtest top-N long-only portfolio.
+    Args:
+        prices: OHLCV dataframe (date x tickers) - Close prices
+        scores: Value factor scores (date x tickers)
+        top_n: Number of stocks to hold
+
+    Returns:
+        DataFrame with daily portfolio returns and cumulative equity
     """
-    rets = prices.pct_change().shift(-1)  # next day return
-    portfolio_vals = []
+    # Daily returns
+    returns = prices.pct_change().shift(-1)  # next-day return
 
-    for date, row in scores.resample("M").last().iterrows():
-        top = row.nlargest(top_n).index
-        port_ret = rets.loc[date:, top].iloc[0].mean()
-        portfolio_vals.append((date, port_ret))
+    portfolio_ret = []
 
-    return pd.DataFrame(portfolio_vals, columns=["date", "return"]).set_index("date")
+    # Rebalance monthly
+    rebalance_dates = scores.resample("M").last().index
+
+    for date in rebalance_dates:
+        if date not in scores.index:
+            continue
+        top_stocks = scores.loc[date].nlargest(top_n).index
+        daily_ret = returns[top_stocks].mean(axis=1)
+        portfolio_ret.append(daily_ret)
+
+    portfolio_ret = pd.concat(portfolio_ret).sort_index()
+    portfolio_cum = (1 + portfolio_ret).cumprod()
+    return pd.DataFrame({"daily_return": portfolio_ret, "equity_curve": portfolio_cum})

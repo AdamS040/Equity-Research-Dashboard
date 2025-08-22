@@ -1,8 +1,8 @@
-import yfinance as yf
-import pandas as pd
+from .schemas import PriceDataSchema
 
 def get_price_data(ticker: str, start: str = "2015-01-01") -> pd.DataFrame:
-    """Download OHLCV price data from Yahoo Finance."""
+    import yfinance as yf
     df = yf.download(ticker, start=start, auto_adjust=True)
     df.index.name = "date"
+    PriceDataSchema.validate(df)
     return df

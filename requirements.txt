@@ -1,0 +1,6 @@
+pandas
+numpy
+hashlib
+yfinance
+streamlit
+plotly

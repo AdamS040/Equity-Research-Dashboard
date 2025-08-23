@@ -3,13 +3,23 @@ import yfinance as yf
 
 def backtest_top_n(tickers, start="2020-01-01", end=None):
     """
-    Backtest equal-weighted portfolio of top N tickers vs SPY benchmark.
+    Backtest equal-weighted portfolio of provided tickers.
+    SPY benchmark added only if explicitly included.
     """
-    prices = yf.download(tickers, start=start, end=end)["Adj Close"]
-    returns = prices.pct_change().dropna()
+    data = yf.download(list(tickers), start=start, end=end, auto_adjust=True, progress=False)
+    if data.empty:
+        raise ValueError("No data returned for backtest tickers.")
 
-    port_rets = returns[tickers].mean(axis=1)
+    prices = data["Adj Close"] if "Adj Close" in data else data
+    if isinstance(prices, pd.Series):
+        prices = prices.to_frame()
+
+    returns = prices.pct_change().dropna(how="all")
+    port_rets = returns.mean(axis=1)
     eq_curve = (1 + port_rets).cumprod()
-    bench_curve = (1 + returns["SPY"]).cumprod() if "SPY" in returns else None
 
-    return pd.DataFrame({"Portfolio": eq_curve, "Benchmark": bench_curve})
+    df = pd.DataFrame({"Portfolio": eq_curve})
+    if "SPY" in prices.columns:
+        bench_curve = (1 + returns["SPY"]).cumprod()
+        df["Benchmark"] = bench_curve
+    return df

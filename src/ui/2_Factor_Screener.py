@@ -1,26 +1,24 @@
+# src/ui/2_Factor_Screener.py
 import sys
 from pathlib import Path
-import hashlib
-import pandas as pd
-import numpy as np
-import streamlit as st
-import plotly.express as px
 
-# Ensure 'src' is importable
+# Make 'src' importable when running via "streamlit run"
 src_dir = Path(__file__).resolve().parents[1]
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
-# Imports from repo
+import pandas as pd
+import streamlit as st
+import yfinance as yf
+import plotly.express as px
+
 from features.value import compute_value_scores
 from features.quality import compute_quality_scores
 from features.momentum import compute_momentum_scores
 from features.volatility import compute_vol_scores
 from backtest.engine import backtest_top_n
 from viz.plots import plot_equity_curve
-
-from src.features.fundamentals import fetch_fundamentals
-from src.features.prices import fetch_prices
+from src.features.fundamentals import fetch_fundamentals, stable_u01, make_placeholder_financials
 
 st.set_page_config(page_title="Multi-Factor Screener", layout="wide")
 st.title("📊 Multi-Factor Equity Screener")
@@ -30,26 +28,6 @@ st.title("📊 Multi-Factor Equity Screener")
 # -----------------------------
 def clean_tickers(raw: str) -> list[str]:
     return sorted({t.strip().upper() for t in raw.split(",") if t.strip()})
-
-def stable_u01(s: str) -> float:
-    """Deterministic pseudo-random in [0,1) per ticker."""
-    if isinstance(s, tuple):
-        s = s[0]
-    return int(hashlib.sha1(str(s).encode()).hexdigest()[:10], 16) % 1_000_000 / 1_000_000.0
-
-def make_placeholder_financials(universe: list[str]) -> pd.DataFrame:
-    """Always returns all necessary columns for factor computation."""
-    u = pd.Series({t: stable_u01(t) for t in universe})
-    df = pd.DataFrame(index=universe)
-    # Value proxies
-    df["PE"] = 12 + 25 * u
-    df["PB"] = 0.8 + 6 * u
-    df["EV_EBITDA"] = 6 + 18 * u
-    # Quality proxies
-    df["ROE"] = 5 + 25 * u
-    df["NetMargin"] = 3 + 22 * u
-    df["DebtEquity"] = 0.2 + 1.5 * u
-    return df
 
 # -----------------------------
 # Sidebar - Factor Weights
@@ -63,7 +41,10 @@ w_vol     = st.sidebar.slider("Low Volatility", 0.0, 1.0, 0.25, 0.05)
 # -----------------------------
 # Universe & settings
 # -----------------------------
-raw = st.text_input("Enter tickers (comma-separated)", "AAPL, MSFT, AMZN, TSLA, META, NVDA, GOOGL")
+raw = st.text_input(
+    "Enter tickers (comma-separated)", 
+    "AAPL, MSFT, AMZN, TSLA, META, NVDA, GOOGL"
+)
 tickers = clean_tickers(raw)
 top_n = st.slider("Top N Stocks", 3, 25, 8, 1)
 start_date = st.date_input("Start date", pd.to_datetime("2020-01-01"))
@@ -76,33 +57,70 @@ if run:
         st.stop()
 
     # -----------------------------
-    # Fetch prices robustly
+    # Fetch price data robustly
     # -----------------------------
     st.info("Fetching price data…")
-    prices = fetch_prices(tickers, start=str(start_date))
-    st.success(f"Fetched price data for {len(prices.columns)} tickers.")
+    try:
+        data = yf.download(tickers, start=start_date, auto_adjust=True, progress=False)
+        if data.empty:
+            raise ValueError("No data returned")
+
+        # Use Adjusted Close if available
+        prices = data["Adj Close"] if "Adj Close" in data else data
+
+        # Flatten MultiIndex columns
+        if isinstance(prices.columns, pd.MultiIndex):
+            prices.columns = [
+                col[1] if isinstance(col, tuple) else col for col in prices.columns
+            ]
+
+    except Exception as e:
+        st.warning(f"Yahoo price fetch failed ({e}). Using placeholder price data.")
+        # Placeholder: 252 trading days, 1 year, 5% noise
+        prices = pd.DataFrame(
+            {t: 100 + pd.Series(range(252)) + pd.Series([stable_u01(t)*10 for _ in range(252)])
+             for t in tickers}
+        )
 
     # -----------------------------
-    # Fetch fundamentals robustly
+    # Drop tickers with insufficient data
+    # -----------------------------
+    min_rows = 130
+    valid_cols = []
+    for c in prices.columns:
+        non_na_count = prices[c].dropna().shape[0]
+        if non_na_count >= min_rows:
+            valid_cols.append(c)
+    dropped = sorted(set(prices.columns) - set(valid_cols))
+    prices = prices[valid_cols]
+
+    if not len(prices.columns):
+        st.error("All tickers dropped due to insufficient data.")
+        st.stop()
+    if dropped:
+        st.warning(f"Dropped tickers with insufficient data: {', '.join(dropped)}")
+    universe = list(prices.columns)
+
+    # -----------------------------
+    # Fetch fundamentals
     # -----------------------------
     st.info("Fetching fundamentals…")
     try:
-        financials = fetch_fundamentals(tickers)
-        missing_cols = {"PE", "PB", "EV_EBITDA", "ROE", "NetMargin", "DebtEquity"} - set(financials.columns)
-        if missing_cols:
-            st.warning(f"Missing columns {missing_cols}, using placeholders for these.")
-            placeholders = make_placeholder_financials(tickers)
-            for col in missing_cols:
-                financials[col] = placeholders[col]
+        financials = fetch_fundamentals(universe)
+        # Ensure required columns are present
+        required_cols = ["PE", "PB", "EV_EBITDA", "ROE", "NetMargin", "DebtEquity"]
+        if any(col not in financials.columns for col in required_cols):
+            st.warning("Missing fundamentals columns. Using placeholder fundamentals.")
+            financials = make_placeholder_financials(universe)
     except Exception as e:
-        st.warning(f"Fundamentals unavailable, using placeholders. ({e})")
-        financials = make_placeholder_financials(tickers)
+        st.warning(f"Could not fetch fundamentals, using placeholders ({e})")
+        financials = make_placeholder_financials(universe)
 
     # -----------------------------
     # Compute factor scores
     # -----------------------------
     try:
-        df = pd.DataFrame(index=tickers)
+        df = pd.DataFrame(index=universe)
         df["Value_Score"]   = compute_value_scores(financials)
         df["Quality_Score"] = compute_quality_scores(financials)
         df["Momentum"]      = compute_momentum_scores(prices)
@@ -113,7 +131,7 @@ if run:
         st.stop()
 
     # -----------------------------
-    # Weighted scoring
+    # Apply factor weights
     # -----------------------------
     weights = {
         "Value_Score": w_value,
@@ -135,10 +153,10 @@ if run:
     top_picks = df.head(top_n)
     st.dataframe(top_picks, use_container_width=True)
 
-    # Bar chart
     fig = px.bar(
         top_picks.reset_index(),
-        x="index", y="Final Score",
+        x="index",
+        y="Final Score",
         hover_data=["Value_Score", "Quality_Score", "Momentum", "Volatility"],
         title="Top N Factor Picks"
     )
@@ -147,4 +165,10 @@ if run:
 
     # -----------------------------
     # Backtest top N
-    # -----
+    # -----------------------------
+    st.subheader("Backtest")
+    try:
+        eq_curve = backtest_top_n(list(top_picks.index), start=str(prices.index.min().date()))
+        st.plotly_chart(plot_equity_curve(eq_curve), use_container_width=True)
+    except Exception as e:
+        st.warning(f"Backtest skipped: {e}")

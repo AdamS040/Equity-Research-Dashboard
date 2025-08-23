@@ -1,62 +1,63 @@
 # src/features/fundamentals.py
-import yfinance as yf
+import hashlib
 import pandas as pd
-import streamlit as st
-import numpy as np
-from .prices import stable_u01
+import yfinance as yf
 
-REQUIRED_COLUMNS = ["PE", "PB", "EV_EBITDA", "ROE", "NetMargin", "DebtEquity"]
+# -----------------------------
+# Helpers
+# -----------------------------
+def stable_u01(s) -> float:
+    """Deterministic pseudo-random in [0,1) per ticker"""
+    s = str(s)  # ensure string
+    h = hashlib.sha1(s.encode()).hexdigest()
+    return (int(h[:10], 16) % 1_000_000) / 1_000_000.0
 
-def fetch_fundamentals(tickers: list[str]) -> pd.DataFrame:
-    """
-    Fetch fundamentals from Yahoo Finance for a list of tickers.
-    Always returns a DataFrame with REQUIRED_COLUMNS. Missing data is filled with placeholders.
-
-    Args:
-        tickers: List of ticker symbols
-
-    Returns:
-        pd.DataFrame indexed by tickers with columns PE, PB, EV_EBITDA, ROE, NetMargin, DebtEquity
-    """
-    df = pd.DataFrame(index=tickers, columns=REQUIRED_COLUMNS, dtype=float)
-
-    for t in tickers:
-        try:
-            st.info(f"Fetching fundamentals for {t}")
-            yf_ticker = yf.Ticker(t)
-            info = yf_ticker.info
-
-            df.at[t, "PE"] = info.get("trailingPE", np.nan)
-            df.at[t, "PB"] = info.get("priceToBook", np.nan)
-            df.at[t, "EV_EBITDA"] = info.get("enterpriseToEbitda", np.nan)
-            df.at[t, "ROE"] = info.get("returnOnEquity", np.nan)
-            df.at[t, "NetMargin"] = info.get("profitMargins", np.nan)
-            df.at[t, "DebtEquity"] = info.get("debtToEquity", np.nan)
-
-        except Exception as e:
-            st.warning(f"Could not fetch fundamentals for {t}: {e}")
-
-    # Fill missing values with deterministic placeholders
-    for col in REQUIRED_COLUMNS:
-        missing = df[col].isna()
-        if missing.any():
-            st.warning(f"Filling missing {col} with placeholders for {missing.sum()} tickers.")
-            df.loc[missing, col] = [make_placeholder_value(t, col) for t in df.index[missing]]
-
+def make_placeholder_financials(universe: list) -> pd.DataFrame:
+    """Return a DataFrame of dummy fundamentals for tickers"""
+    u = pd.Series({t: stable_u01(t) for t in universe})
+    df = pd.DataFrame(index=universe)
+    df["PE"]        = 12 + 25 * u
+    df["PB"]        = 0.8 + 6 * u
+    df["EV_EBITDA"] = 6 + 18 * u
+    df["ROE"]       = 5 + 25 * u
+    df["NetMargin"] = 3 + 22 * u
+    df["DebtEquity"] = 0.2 + 1.5 * u
     return df
 
-def make_placeholder_value(ticker: str, column: str) -> float:
+# -----------------------------
+# Fetch fundamentals
+# -----------------------------
+def fetch_fundamentals(tickers: list) -> pd.DataFrame:
     """
-    Deterministic placeholder for a given ticker and column.
+    Fetch basic fundamentals via yfinance.
+    Returns placeholder DataFrame if Yahoo fails.
     """
-    base = {
-        "PE": 15,
-        "PB": 2,
-        "EV_EBITDA": 10,
-        "ROE": 0.15,
-        "NetMargin": 0.10,
-        "DebtEquity": 0.5
-    }
-    u = stable_u01(ticker)
-    # Slight variation based on ticker
-    return base.get(column, 1.0) * (0.8 + 0.4 * u)
+    df_list = []
+    for t in tickers:
+        try:
+            t_upper = str(t).upper()
+            info = yf.Ticker(t_upper).info
+            row = {
+                "PE": info.get("trailingPE", None),
+                "PB": info.get("priceToBook", None),
+                "EV_EBITDA": info.get("enterpriseToEbitda", None),
+                "ROE": info.get("returnOnEquity", None),
+                "NetMargin": info.get("netMargins", None),
+                "DebtEquity": info.get("debtToEquity", None),
+            }
+            df_list.append(pd.Series(row, name=t_upper))
+        except Exception:
+            # If fetch fails, use placeholders
+            df_list.append(pd.Series(index=["PE","PB","EV_EBITDA","ROE","NetMargin","DebtEquity"], name=t))
+
+    if df_list:
+        df = pd.DataFrame(df_list)
+        # Fill missing with placeholders
+        missing_tickers = df.index[df.isna().any(axis=1)]
+        if len(missing_tickers) > 0:
+            df.update(make_placeholder_financials(missing_tickers))
+        return df
+    else:
+        return make_placeholder_financials(tickers)
+
+__all__ = ["fetch_fundamentals", "stable_u01", "make_placeholder_financials"]

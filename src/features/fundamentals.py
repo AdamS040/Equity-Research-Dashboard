@@ -1,54 +1,62 @@
+# src/features/fundamentals.py
 import yfinance as yf
 import pandas as pd
+import streamlit as st
+import numpy as np
+from .prices import stable_u01
 
-def fetch_fundamentals(universe: list[str]) -> pd.DataFrame:
+REQUIRED_COLUMNS = ["PE", "PB", "EV_EBITDA", "ROE", "NetMargin", "DebtEquity"]
+
+def fetch_fundamentals(tickers: list[str]) -> pd.DataFrame:
     """
-    Pulls key ratios from Yahoo Finance for each ticker in universe.
-    Returns a DataFrame with Value, Quality, Momentum, Volatility placeholders.
+    Fetch fundamentals from Yahoo Finance for a list of tickers.
+    Always returns a DataFrame with REQUIRED_COLUMNS. Missing data is filled with placeholders.
+
+    Args:
+        tickers: List of ticker symbols
+
+    Returns:
+        pd.DataFrame indexed by tickers with columns PE, PB, EV_EBITDA, ROE, NetMargin, DebtEquity
     """
+    df = pd.DataFrame(index=tickers, columns=REQUIRED_COLUMNS, dtype=float)
 
-    records = []
-
-    for ticker in universe:
+    for t in tickers:
         try:
-            stock = yf.Ticker(ticker)
-            info = stock.info  # metadata dict
+            st.info(f"Fetching fundamentals for {t}")
+            yf_ticker = yf.Ticker(t)
+            info = yf_ticker.info
 
-            # Defensive parsing: some tickers may miss data
-            pe = info.get("trailingPE", None)
-            roe = info.get("returnOnEquity", None)
-            debt_to_eq = info.get("debtToEquity", None)
-
-            records.append({
-                "Ticker": ticker,
-                "Value": pe if pe else None,
-                "Quality": roe if roe else None,
-                "Leverage": debt_to_eq if debt_to_eq else None,
-            })
+            df.at[t, "PE"] = info.get("trailingPE", np.nan)
+            df.at[t, "PB"] = info.get("priceToBook", np.nan)
+            df.at[t, "EV_EBITDA"] = info.get("enterpriseToEbitda", np.nan)
+            df.at[t, "ROE"] = info.get("returnOnEquity", np.nan)
+            df.at[t, "NetMargin"] = info.get("profitMargins", np.nan)
+            df.at[t, "DebtEquity"] = info.get("debtToEquity", np.nan)
 
         except Exception as e:
-            print(f"⚠️ Could not fetch {ticker}: {e}")
-            records.append({
-                "Ticker": ticker,
-                "Value": None,
-                "Quality": None,
-                "Leverage": None,
-            })
+            st.warning(f"Could not fetch fundamentals for {t}: {e}")
 
-    df = pd.DataFrame(records).set_index("Ticker")
+    # Fill missing values with deterministic placeholders
+    for col in REQUIRED_COLUMNS:
+        missing = df[col].isna()
+        if missing.any():
+            st.warning(f"Filling missing {col} with placeholders for {missing.sum()} tickers.")
+            df.loc[missing, col] = [make_placeholder_value(t, col) for t in df.index[missing]]
 
-    # Basic cleaning: lower P/E is better, higher ROE better, lower Debt/Equity better
-    df = df.apply(pd.to_numeric, errors="coerce")
+    return df
 
-    # Normalize 0–1 for each factor (quant style)
-    def normalize(series, reverse=False):
-        s = series.copy()
-        if reverse:  # lower = better
-            s = -s
-        return (s - s.min()) / (s.max() - s.min())
-
-    df["Value_Score"] = normalize(df["Value"], reverse=True)
-    df["Quality_Score"] = normalize(df["Quality"], reverse=False)
-    df["Leverage_Score"] = normalize(df["Leverage"], reverse=True)
-
-    return df[["Value_Score", "Quality_Score", "Leverage_Score"]]
+def make_placeholder_value(ticker: str, column: str) -> float:
+    """
+    Deterministic placeholder for a given ticker and column.
+    """
+    base = {
+        "PE": 15,
+        "PB": 2,
+        "EV_EBITDA": 10,
+        "ROE": 0.15,
+        "NetMargin": 0.10,
+        "DebtEquity": 0.5
+    }
+    u = stable_u01(ticker)
+    # Slight variation based on ticker
+    return base.get(column, 1.0) * (0.8 + 0.4 * u)

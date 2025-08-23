@@ -1,26 +1,25 @@
+# src/features/momentum.py
 import pandas as pd
 
-def compute_momentum_scores(prices: pd.DataFrame, lookback: int = 126, min_lookback: int = 63) -> pd.Series:
+def compute_momentum_scores(prices: pd.DataFrame, lookback: int = 252) -> pd.Series:
     """
-    Momentum = total return over lookback (z-scored).
-    Falls back to available window if history < lookback.
+    Compute momentum scores as annualized return over lookback period (default 1Y ~ 252 trading days).
+    Automatically handles missing tickers and short histories.
     """
-    if prices is None or prices.empty:
-        raise ValueError("No price data provided to compute_momentum_scores.")
+    scores = pd.Series(index=prices.columns, dtype=float)
 
-    if isinstance(prices, pd.Series):
-        prices = prices.to_frame()
+    for ticker in prices.columns:
+        series = prices[ticker].dropna()
+        if len(series) < 2:
+            scores[ticker] = 0  # insufficient data
+        else:
+            ret = series.pct_change().fillna(0)
+            if len(ret) < lookback:
+                lookback_ret = ret.sum()  # shorter history fallback
+            else:
+                lookback_ret = ret[-lookback:].sum()
+            scores[ticker] = lookback_ret
 
-    n = len(prices)
-    if n < (min_lookback + 1):
-        raise ValueError("Not enough history for momentum (<~3 months).")
-
-    lb = min(lookback, n - 1)
-
-    # vectorized total return over lb days
-    last = prices.iloc[-1]
-    prev = prices.iloc[-1 - lb]
-    total_ret = (last / prev) - 1
-
-    z = (total_ret - total_ret.mean()) / total_ret.std(ddof=0)
-    return z
+    # z-score across universe
+    scores = (scores - scores.mean()) / (scores.std() + 1e-9)
+    return scores

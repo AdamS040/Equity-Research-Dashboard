@@ -1,20 +1,21 @@
 import pandas as pd
 
-def compute_value_scores(financials: pd.DataFrame) -> pd.Series:
+def compute_value_scores(df: pd.DataFrame) -> pd.Series:
     """
-    Compute Value factor scores based on common ratios:
-    - Price to Earnings (P/E)
-    - Price to Book (P/B)
-    - EV/EBITDA
-    Lower ratios = better value.
-    Input:
-        financials: DataFrame with columns ['PE', 'PB', 'EV_EBITDA']
-    Output:
-        Series of z-scored value scores
+    Compute value factor score based on PE, PB, EV/EBITDA if present.
+    Automatically creates missing columns with zeros to avoid KeyErrors.
     """
-    df = financials.copy()
-    df["PE_z"] = -(df["PE"] - df["PE"].mean()) / df["PE"].std()
-    df["PB_z"] = -(df["PB"] - df["PB"].mean()) / df["PB"].std()
-    df["EVEBITDA_z"] = -(df["EV_EBITDA"] - df["EV_EBITDA"].mean()) / df["EV_EBITDA"].std()
+    for col in ["PE", "PB", "EV_EBITDA"]:
+        if col not in df.columns:
+            df[col] = 0  # fallback placeholder
 
-    return df[["PE_z", "PB_z", "EVEBITDA_z"]].mean(axis=1)
+    # z-scores (higher = better value)
+    df["PE_z"] = -(df["PE"] - df["PE"].mean()) / (df["PE"].std() + 1e-9)
+    df["PB_z"] = -(df["PB"] - df["PB"].mean()) / (df["PB"].std() + 1e-9)
+    if "EV_EBITDA" in df.columns:
+        df["EV_EBITDA_z"] = -(df["EV_EBITDA"] - df["EV_EBITDA"].mean()) / (df["EV_EBITDA"].std() + 1e-9)
+    else:
+        df["EV_EBITDA_z"] = 0
+
+    value_score = df[["PE_z", "PB_z", "EV_EBITDA_z"]].mean(axis=1)
+    return value_score

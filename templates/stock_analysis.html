@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Analysis - Equity Research Dashboard{% endblock %}
+
+{% block content %}
+<div class="analysis-container">
+    <!-- Stock Selection Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h4 class="mb-0">
+                                <span id="analysis-symbol">--</span>
+                                <small class="text-muted" id="analysis-company">Select a stock to analyze</small>
+                            </h4>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary" data-analysis="technical">Technical</button>
+                                <button type="button" class="btn btn-outline-primary" data-analysis="fundamental">Fundamental</button>
+                                <button type="button" class="btn btn-outline-primary" data-analysis="valuation">Valuation</button>
+                                <button type="button" class="btn btn-outline-primary" data-analysis="peer">Peer Analysis</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Analysis Section -->
+    <div class="analysis-section" id="technical-section">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up-arrow"></i> Technical Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Technical Indicators -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="indicator-card">
+                                    <div class="indicator-title">RSI</div>
+                                    <div class="indicator-value" id="rsi-value">--</div>
+                                    <div class="indicator-status" id="rsi-status">--</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="indicator-card">
+                                    <div class="indicator-title">MACD</div>
+                                    <div class="indicator-value" id="macd-value">--</div>
+                                    <div class="indicator-status" id="macd-status">--</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="indicator-card">
+                                    <div class="indicator-title">Bollinger Bands</div>
+                                    <div class="indicator-value" id="bb-value">--</div>
+                                    <div class="indicator-status" id="bb-status">--</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="indicator-card">
+                                    <div class="indicator-title">Moving Averages</div>
+                                    <div class="indicator-value" id="ma-value">--</div>
+                                    <div class="indicator-status" id="ma-status">--</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Technical Charts -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="chart-container">
+                                    <div id="technical-chart" class="chart"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="chart-container">
+                                    <div id="rsi-chart" class="chart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fundamental Analysis Section -->
+    <div class="analysis-section" id="fundamental-section" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-calculator"></i> Fundamental Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Financial Ratios -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Profitability Ratios</h6>
+                                <div class="ratio-table">
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Return on Equity (ROE)</span>
+                                        <span class="ratio-value" id="roe-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Return on Assets (ROA)</span>
+                                        <span class="ratio-value" id="roa-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Return on Invested Capital (ROIC)</span>
+                                        <span class="ratio-value" id="roic-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Gross Margin</span>
+                                        <span class="ratio-value" id="gross-margin-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Operating Margin</span>
+                                        <span class="ratio-value" id="operating-margin-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Net Margin</span>
+                                        <span class="ratio-value" id="net-margin-ratio">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Financial Health Ratios</h6>
+                                <div class="ratio-table">
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Current Ratio</span>
+                                        <span class="ratio-value" id="current-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Quick Ratio</span>
+                                        <span class="ratio-value" id="quick-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Debt-to-Equity</span>
+                                        <span class="ratio-value" id="debt-equity-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Interest Coverage</span>
+                                        <span class="ratio-value" id="interest-coverage-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Asset Turnover</span>
+                                        <span class="ratio-value" id="asset-turnover-ratio">--</span>
+                                    </div>
+                                    <div class="ratio-row">
+                                        <span class="ratio-name">Inventory Turnover</span>
+                                        <span class="ratio-value" id="inventory-turnover-ratio">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Financial Statements Chart -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="chart-container">
+                                    <div id="financial-chart" class="chart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Valuation Analysis Section -->
+    <div class="analysis-section" id="valuation-section" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cash-coin"></i> Valuation Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Valuation Models -->
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="valuation-card">
+                                    <h6>DCF Model</h6>
+                                    <div class="valuation-result">
+                                        <div class="valuation-label">Intrinsic Value</div>
+                                        <div class="valuation-value" id="dcf-value">--</div>
+                                        <div class="valuation-premium" id="dcf-premium">--</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="runDCFAnalysis()">
+                                        Run DCF Analysis
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="valuation-card">
+                                    <h6>Dividend Discount Model</h6>
+                                    <div class="valuation-result">
+                                        <div class="valuation-label">Intrinsic Value</div>
+                                        <div class="valuation-value" id="ddm-value">--</div>
+                                        <div class="valuation-premium" id="ddm-premium">--</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="runDDMAnalysis()">
+                                        Run DDM Analysis
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="valuation-card">
+                                    <h6>Comparable Analysis</h6>
+                                    <div class="valuation-result">
+                                        <div class="valuation-label">Implied Value</div>
+                                        <div class="valuation-value" id="comparable-value">--</div>
+                                        <div class="valuation-premium" id="comparable-premium">--</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="runComparableAnalysis()">
+                                        Run Comparable Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Valuation Charts -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <div id="dcf-sensitivity-chart" class="chart"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <div id="valuation-comparison-chart" class="chart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Peer Analysis Section -->
+    <div class="analysis-section" id="peer-section" style="display: none;">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-people"></i> Peer Analysis
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Peer Selection -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="peer-symbols" class="form-label">Select Peer Companies</label>
+                                <select class="form-select" id="peer-symbols" multiple>
+                                    <option value="AAPL">Apple Inc. (AAPL)</option>
+                                    <option value="MSFT">Microsoft Corp. (MSFT)</option>
+                                    <option value="GOOGL">Alphabet Inc. (GOOGL)</option>
+                                    <option value="AMZN">Amazon.com Inc. (AMZN)</option>
+                                    <option value="TSLA">Tesla Inc. (TSLA)</option>
+                                    <option value="META">Meta Platforms Inc. (META)</option>
+                                    <option value="NVDA">NVIDIA Corp. (NVDA)</option>
+                                    <option value="NFLX">Netflix Inc. (NFLX)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-primary" onclick="runPeerAnalysis()">
+                                    <i class="bi bi-play"></i> Run Peer Analysis
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Peer Comparison Table -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="peer-comparison-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th id="target-company">Target</th>
+                                                <th>Peer Average</th>
+                                                <th>Peer Median</th>
+                                                <th>Rank</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>P/E Ratio</td>
+                                                <td id="pe-target">--</td>
+                                                <td id="pe-avg">--</td>
+                                                <td id="pe-median">--</td>
+                                                <td id="pe-rank">--</td>
+                                            </tr>
+                                            <tr>
+                                                <td>P/B Ratio</td>
+                                                <td id="pb-target">--</td>
+                                                <td id="pb-avg">--</td>
+                                                <td id="pb-median">--</td>
+                                                <td id="pb-rank">--</td>
+                                            </tr>
+                                            <tr>
+                                                <td>P/S Ratio</td>
+                                                <td id="ps-target">--</td>
+                                                <td id="ps-avg">--</td>
+                                                <td id="ps-median">--</td>
+                                                <td id="ps-rank">--</td>
+                                            </tr>
+                                            <tr>
+                                                <td>EV/EBITDA</td>
+                                                <td id="ev-ebitda-target">--</td>
+                                                <td id="ev-ebitda-avg">--</td>
+                                                <td id="ev-ebitda-median">--</td>
+                                                <td id="ev-ebitda-rank">--</td>
+                                            </tr>
+                                            <tr>
+                                                <td>ROE</td>
+                                                <td id="roe-target">--</td>
+                                                <td id="roe-avg">--</td>
+                                                <td id="roe-median">--</td>
+                                                <td id="roe-rank">--</td>
+                                            </tr>
+                                            <tr>
+                                                <td>ROA</td>
+                                                <td id="roa-target">--</td>
+                                                <td id="roa-avg">--</td>
+                                                <td id="roa-median">--</td>
+                                                <td id="roa-rank">--</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Peer Charts -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <div id="peer-valuation-chart" class="chart"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <div id="peer-performance-chart" class="chart"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize analysis-specific functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up analysis type buttons
+        const analysisButtons = document.querySelectorAll('[data-analysis]');
+        analysisButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                analysisButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Show selected analysis section
+                const analysisType = this.getAttribute('data-analysis');
+                showAnalysisSection(analysisType);
+            });
+        });
+    });
+    
+    // Function to show specific analysis section
+    function showAnalysisSection(analysisType) {
+        // Hide all sections
+        document.querySelectorAll('.analysis-section').forEach(section => {
+            section.style.display = 'none';
+        });
+        
+        // Show selected section
+        const targetSection = document.getElementById(`${analysisType}-section`);
+        if (targetSection) {
+            targetSection.style.display = 'block';
+            
+            // Load section-specific data
+            loadAnalysisData(analysisType);
+        }
+    }
+    
+    // Function to load analysis data
+    async function loadAnalysisData(analysisType) {
+        if (!currentSymbol) return;
+        
+        try {
+            const response = await fetch(`/api/analysis/${currentSymbol}/${analysisType}`);
+            if (response.ok) {
+                const data = await response.json();
+                updateAnalysisDisplay(analysisType, data);
+            }
+        } catch (error) {
+            console.error('Error loading analysis data:', error);
+        }
+    }
+    
+    // Function to update analysis display
+    function updateAnalysisDisplay(analysisType, data) {
+        switch (analysisType) {
+            case 'technical':
+                updateTechnicalAnalysis(data);
+                break;
+            case 'fundamental':
+                updateFundamentalAnalysis(data);
+                break;
+            case 'valuation':
+                updateValuationAnalysis(data);
+                break;
+            case 'peer':
+                updatePeerAnalysis(data);
+                break;
+        }
+    }
+    
+    // Analysis-specific update functions
+    function updateTechnicalAnalysis(data) {
+        // Update technical indicators
+        if (data.indicators) {
+            Object.keys(data.indicators).forEach(indicator => {
+                const valueElement = document.getElementById(`${indicator}-value`);
+                const statusElement = document.getElementById(`${indicator}-status`);
+                
+                if (valueElement && data.indicators[indicator]) {
+                    valueElement.textContent = data.indicators[indicator].value;
+                    statusElement.textContent = data.indicators[indicator].signal;
+                    statusElement.className = `indicator-status ${data.indicators[indicator].signal.toLowerCase()}`;
+                }
+            });
+        }
+        
+        // Update charts
+        if (data.charts) {
+            Object.keys(data.charts).forEach(chartType => {
+                const chartId = `${chartType}-chart`;
+                if (data.charts[chartType]) {
+                    Plotly.newPlot(chartId, data.charts[chartType].data, data.charts[chartType].layout);
+                }
+            });
+        }
+    }
+    
+    function updateFundamentalAnalysis(data) {
+        // Update financial ratios
+        if (data.ratios) {
+            Object.keys(data.ratios).forEach(ratio => {
+                const element = document.getElementById(`${ratio}-ratio`);
+                if (element) {
+                    element.textContent = formatRatio(data.ratios[ratio]);
+                }
+            });
+        }
+        
+        // Update financial chart
+        if (data.financialChart) {
+            Plotly.newPlot('financial-chart', data.financialChart.data, data.financialChart.layout);
+        }
+    }
+    
+    function updateValuationAnalysis(data) {
+        // Update valuation results
+        if (data.valuations) {
+            Object.keys(data.valuations).forEach(model => {
+                const valueElement = document.getElementById(`${model}-value`);
+                const premiumElement = document.getElementById(`${model}-premium`);
+                
+                if (valueElement && data.valuations[model]) {
+                    valueElement.textContent = formatCurrency(data.valuations[model].value);
+                    premiumElement.textContent = `${formatPercent(data.valuations[model].premium)} premium`;
+                    premiumElement.className = `valuation-premium ${data.valuations[model].premium >= 0 ? 'positive' : 'negative'}`;
+                }
+            });
+        }
+        
+        // Update valuation charts
+        if (data.charts) {
+            Object.keys(data.charts).forEach(chartType => {
+                const chartId = `${chartType}-chart`;
+                if (data.charts[chartType]) {
+                    Plotly.newPlot(chartId, data.charts[chartType].data, data.charts[chartType].layout);
+                }
+            });
+        }
+    }
+    
+    function updatePeerAnalysis(data) {
+        // Update peer comparison table
+        if (data.comparison) {
+            Object.keys(data.comparison).forEach(metric => {
+                const targetElement = document.getElementById(`${metric}-target`);
+                const avgElement = document.getElementById(`${metric}-avg`);
+                const medianElement = document.getElementById(`${metric}-median`);
+                const rankElement = document.getElementById(`${metric}-rank`);
+                
+                if (targetElement && data.comparison[metric]) {
+                    targetElement.textContent = formatMetric(data.comparison[metric].target, metric);
+                    avgElement.textContent = formatMetric(data.comparison[metric].average, metric);
+                    medianElement.textContent = formatMetric(data.comparison[metric].median, metric);
+                    rankElement.textContent = `${data.comparison[metric].rank}/${data.comparison[metric].total}`;
+                }
+            });
+        }
+        
+        // Update peer charts
+        if (data.charts) {
+            Object.keys(data.charts).forEach(chartType => {
+                const chartId = `${chartType}-chart`;
+                if (data.charts[chartType]) {
+                    Plotly.newPlot(chartId, data.charts[chartType].data, data.charts[chartType].layout);
+                }
+            });
+        }
+    }
+    
+    // Analysis execution functions
+    async function runDCFAnalysis() {
+        if (!currentSymbol) {
+            showError('Please select a stock first');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            const response = await fetch('/api/analysis/dcf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: currentSymbol })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                updateValuationAnalysis({ valuations: { dcf: result } });
+            }
+        } catch (error) {
+            showError('Error running DCF analysis: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    async function runDDMAnalysis() {
+        if (!currentSymbol) {
+            showError('Please select a stock first');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            const response = await fetch('/api/analysis/ddm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: currentSymbol })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                updateValuationAnalysis({ valuations: { ddm: result } });
+            }
+        } catch (error) {
+            showError('Error running DDM analysis: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    async function runComparableAnalysis() {
+        if (!currentSymbol) {
+            showError('Please select a stock first');
+            return;
+        }
+        
+        const peerSymbols = Array.from(document.getElementById('peer-symbols').selectedOptions)
+            .map(option => option.value);
+        
+        if (peerSymbols.length === 0) {
+            showError('Please select at least one peer company');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            const response = await fetch('/api/analysis/comparable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    symbol: currentSymbol, 
+                    peerSymbols: peerSymbols 
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                updateValuationAnalysis({ valuations: { comparable: result } });
+                updatePeerAnalysis(result);
+            }
+        } catch (error) {
+            showError('Error running comparable analysis: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    async function runPeerAnalysis() {
+        await runComparableAnalysis();
+    }
+    
+    // Utility function for formatting ratios
+    function formatRatio(value) {
+        if (typeof value === 'number') {
+            return value.toFixed(2);
+        }
+        return value || '--';
+    }
+</script>
+{% endblock %}

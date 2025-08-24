@@ -1,0 +1,728 @@
+{% extends "base.html" %}
+
+{% block title %}Research Reports - Equity Research Dashboard{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+    <!-- Report Generation Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-file-earmark-text"></i> Research Report Generator
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="report-symbol" class="form-label">Stock Symbol</label>
+                                <input type="text" class="form-control" id="report-symbol" placeholder="e.g., AAPL">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="report-type" class="form-label">Report Type</label>
+                                <select class="form-select" id="report-type">
+                                    <option value="full">Full Research Report</option>
+                                    <option value="valuation">Valuation Analysis</option>
+                                    <option value="risk">Risk Analysis</option>
+                                    <option value="peer">Peer Comparison</option>
+                                    <option value="technical">Technical Analysis</option>
+                                    <option value="earnings">Earnings Analysis</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button class="btn btn-primary" onclick="generateReport()">
+                                <i class="bi bi-play"></i> Generate Report
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="previewReport()">
+                                <i class="bi bi-eye"></i> Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Templates -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-layout-text-window"></i> Report Templates
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Full Research Report</h6>
+                                    <span class="badge bg-primary">Comprehensive</span>
+                                </div>
+                                <div class="template-description">
+                                    Complete analysis including valuation, risk assessment, technical analysis, and peer comparison.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: DCF, DDM, Risk Metrics, Technical Indicators, Peer Analysis</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('full')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Valuation Analysis</h6>
+                                    <span class="badge bg-success">Focused</span>
+                                </div>
+                                <div class="template-description">
+                                    Deep dive into valuation models including DCF, DDM, and comparable company analysis.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: DCF Model, DDM, Sensitivity Analysis, Peer Multiples</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('valuation')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Risk Analysis</h6>
+                                    <span class="badge bg-warning">Risk-Focused</span>
+                                </div>
+                                <div class="template-description">
+                                    Comprehensive risk assessment including volatility, VaR, stress testing, and scenario analysis.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: Volatility, VaR, Beta, Stress Tests, Correlation Analysis</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('risk')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Peer Comparison</h6>
+                                    <span class="badge bg-info">Comparative</span>
+                                </div>
+                                <div class="template-description">
+                                    Detailed comparison with peer companies including valuation multiples and financial metrics.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: Peer Selection, Multiples Analysis, Relative Valuation, Ranking</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('peer')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Technical Analysis</h6>
+                                    <span class="badge bg-secondary">Technical</span>
+                                </div>
+                                <div class="template-description">
+                                    Technical analysis report with indicators, patterns, and trading signals.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: RSI, MACD, Bollinger Bands, Moving Averages, Support/Resistance</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('technical')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="template-card">
+                                <div class="template-header">
+                                    <h6>Earnings Analysis</h6>
+                                    <span class="badge bg-dark">Earnings</span>
+                                </div>
+                                <div class="template-description">
+                                    Analysis of earnings trends, estimates, and financial performance metrics.
+                                </div>
+                                <div class="template-features">
+                                    <small class="text-muted">Includes: EPS Trends, Revenue Growth, Margin Analysis, Estimates</small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="selectTemplate('earnings')">
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-file-text"></i> Report Content
+                    </h5>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="exportReport('pdf')">
+                            <i class="bi bi-file-pdf"></i> Export PDF
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm ms-2" onclick="exportReport('docx')">
+                            <i class="bi bi-file-word"></i> Export DOCX
+                        </button>
+                        <button class="btn btn-outline-success btn-sm ms-2" onclick="saveReport()">
+                            <i class="bi bi-save"></i> Save Report
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="report-container">
+                        <div class="text-muted text-center">
+                            <i class="bi bi-file-earmark-text" style="font-size: 3rem;"></i>
+                            <p class="mt-3">Select a stock and report type to generate a research report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saved Reports -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-folder"></i> Saved Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="saved-reports-table">
+                            <thead>
+                                <tr>
+                                    <th>Report Title</th>
+                                    <th>Stock</th>
+                                    <th>Type</th>
+                                    <th>Created</th>
+                                    <th>Last Modified</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="saved-reports-list">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">
+                                        No saved reports found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Preview Modal -->
+<div class="modal fade" id="reportPreviewModal" tabindex="-1" style="--bs-modal-width: 90%;">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Report Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="report-preview-content">
+                    <!-- Preview content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generateReportFromPreview()">Generate Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Settings Modal -->
+<div class="modal fade" id="reportSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Report Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reportSettingsForm">
+                    <div class="mb-3">
+                        <label for="report-title" class="form-label">Report Title</label>
+                        <input type="text" class="form-control" id="report-title" placeholder="Enter report title">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-author" class="form-label">Author</label>
+                        <input type="text" class="form-control" id="report-author" placeholder="Enter author name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-date" class="form-label">Report Date</label>
+                        <input type="date" class="form-control" id="report-date">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-summary" class="form-label">Executive Summary</label>
+                        <textarea class="form-control" id="report-summary" rows="3" placeholder="Enter executive summary"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-recommendation" class="form-label">Recommendation</label>
+                        <select class="form-select" id="report-recommendation">
+                            <option value="buy">Buy</option>
+                            <option value="hold">Hold</option>
+                            <option value="sell">Sell</option>
+                            <option value="strong_buy">Strong Buy</option>
+                            <option value="strong_sell">Strong Sell</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="target-price" class="form-label">Target Price</label>
+                        <input type="number" class="form-control" id="target-price" placeholder="Enter target price" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="report-sections" class="form-label">Include Sections</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-executive-summary" checked>
+                            <label class="form-check-label" for="include-executive-summary">Executive Summary</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-company-overview" checked>
+                            <label class="form-check-label" for="include-company-overview">Company Overview</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-financial-analysis" checked>
+                            <label class="form-check-label" for="include-financial-analysis">Financial Analysis</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-valuation" checked>
+                            <label class="form-check-label" for="include-valuation">Valuation Analysis</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-risk-analysis" checked>
+                            <label class="form-check-label" for="include-risk-analysis">Risk Analysis</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-technical-analysis">
+                            <label class="form-check-label" for="include-technical-analysis">Technical Analysis</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-peer-comparison">
+                            <label class="form-check-label" for="include-peer-comparison">Peer Comparison</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-conclusion" checked>
+                            <label class="form-check-label" for="include-conclusion">Conclusion & Recommendation</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveReportSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Reports-specific functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set current date as default
+        document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+        
+        // Load saved reports
+        loadSavedReports();
+    });
+    
+    // Select template
+    function selectTemplate(templateType) {
+        document.getElementById('report-type').value = templateType;
+        
+        // Update symbol if available
+        if (currentSymbol) {
+            document.getElementById('report-symbol').value = currentSymbol;
+        }
+        
+        // Show settings modal
+        new bootstrap.Modal(document.getElementById('reportSettingsModal')).show();
+    }
+    
+    // Generate report
+    async function generateReport() {
+        const symbol = document.getElementById('report-symbol').value.trim().toUpperCase();
+        const reportType = document.getElementById('report-type').value;
+        
+        if (!symbol) {
+            showError('Please enter a stock symbol');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            
+            const response = await fetch('/api/reports/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    type: reportType,
+                    settings: getReportSettings()
+                })
+            });
+            
+            if (response.ok) {
+                const report = await response.json();
+                displayReport(report);
+            } else {
+                throw new Error('Failed to generate report');
+            }
+        } catch (error) {
+            showError('Error generating report: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Preview report
+    async function previewReport() {
+        const symbol = document.getElementById('report-symbol').value.trim().toUpperCase();
+        const reportType = document.getElementById('report-type').value;
+        
+        if (!symbol) {
+            showError('Please enter a stock symbol');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            
+            const response = await fetch('/api/reports/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    type: reportType,
+                    settings: getReportSettings()
+                })
+            });
+            
+            if (response.ok) {
+                const preview = await response.json();
+                displayReportPreview(preview);
+            } else {
+                throw new Error('Failed to generate preview');
+            }
+        } catch (error) {
+            showError('Error generating preview: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Display report
+    function displayReport(report) {
+        const container = document.getElementById('report-container');
+        
+        container.innerHTML = `
+            <div class="report-header">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h3>${report.title}</h3>
+                        <p class="text-muted">${report.subtitle}</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="report-meta">
+                            <p><strong>Date:</strong> ${formatDate(report.date)}</p>
+                            <p><strong>Author:</strong> ${report.author}</p>
+                            <p><strong>Recommendation:</strong> <span class="badge bg-${getRecommendationColor(report.recommendation)}">${report.recommendation.toUpperCase()}</span></p>
+                            <p><strong>Target Price:</strong> ${formatCurrency(report.targetPrice)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="report-content">
+                ${report.content}
+            </div>
+            <div class="report-footer mt-4">
+                <small class="text-muted">
+                    Report generated on ${formatDateTime(new Date())} | 
+                    <a href="#" onclick="exportReport('pdf')">Download PDF</a> | 
+                    <a href="#" onclick="exportReport('docx')">Download DOCX</a>
+                </small>
+            </div>
+        `;
+    }
+    
+    // Display report preview
+    function displayReportPreview(preview) {
+        const container = document.getElementById('report-preview-content');
+        
+        container.innerHTML = `
+            <div class="preview-header">
+                <h4>${preview.title}</h4>
+                <p class="text-muted">${preview.subtitle}</p>
+            </div>
+            <div class="preview-content">
+                ${preview.content}
+            </div>
+        `;
+        
+        new bootstrap.Modal(document.getElementById('reportPreviewModal')).show();
+    }
+    
+    // Generate report from preview
+    function generateReportFromPreview() {
+        bootstrap.Modal.getInstance(document.getElementById('reportPreviewModal')).hide();
+        generateReport();
+    }
+    
+    // Get report settings
+    function getReportSettings() {
+        return {
+            title: document.getElementById('report-title').value,
+            author: document.getElementById('report-author').value,
+            date: document.getElementById('report-date').value,
+            summary: document.getElementById('report-summary').value,
+            recommendation: document.getElementById('report-recommendation').value,
+            targetPrice: parseFloat(document.getElementById('target-price').value) || null,
+            sections: {
+                executiveSummary: document.getElementById('include-executive-summary').checked,
+                companyOverview: document.getElementById('include-company-overview').checked,
+                financialAnalysis: document.getElementById('include-financial-analysis').checked,
+                valuation: document.getElementById('include-valuation').checked,
+                riskAnalysis: document.getElementById('include-risk-analysis').checked,
+                technicalAnalysis: document.getElementById('include-technical-analysis').checked,
+                peerComparison: document.getElementById('include-peer-comparison').checked,
+                conclusion: document.getElementById('include-conclusion').checked
+            }
+        };
+    }
+    
+    // Save report settings
+    function saveReportSettings() {
+        // Save settings to localStorage or send to server
+        const settings = getReportSettings();
+        localStorage.setItem('reportSettings', JSON.stringify(settings));
+        
+        bootstrap.Modal.getInstance(document.getElementById('reportSettingsModal')).hide();
+        showSuccess('Report settings saved');
+    }
+    
+    // Export report
+    async function exportReport(format) {
+        const symbol = document.getElementById('report-symbol').value.trim().toUpperCase();
+        const reportType = document.getElementById('report-type').value;
+        
+        if (!symbol) {
+            showError('Please enter a stock symbol');
+            return;
+        }
+        
+        try {
+            showLoading(true);
+            
+            const response = await fetch('/api/reports/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    type: reportType,
+                    format: format,
+                    settings: getReportSettings()
+                })
+            });
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${symbol}_${reportType}_report.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showSuccess(`Report exported as ${format.toUpperCase()}`);
+            } else {
+                throw new Error('Failed to export report');
+            }
+        } catch (error) {
+            showError('Error exporting report: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Save report
+    async function saveReport() {
+        const symbol = document.getElementById('report-symbol').value.trim().toUpperCase();
+        const reportType = document.getElementById('report-type').value;
+        
+        if (!symbol) {
+            showError('Please enter a stock symbol');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/reports/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    symbol: symbol,
+                    type: reportType,
+                    settings: getReportSettings()
+                })
+            });
+            
+            if (response.ok) {
+                showSuccess('Report saved successfully');
+                loadSavedReports();
+            } else {
+                throw new Error('Failed to save report');
+            }
+        } catch (error) {
+            showError('Error saving report: ' + error.message);
+        }
+    }
+    
+    // Load saved reports
+    async function loadSavedReports() {
+        try {
+            const response = await fetch('/api/reports/saved');
+            if (response.ok) {
+                const reports = await response.json();
+                updateSavedReportsList(reports);
+            }
+        } catch (error) {
+            console.error('Error loading saved reports:', error);
+        }
+    }
+    
+    // Update saved reports list
+    function updateSavedReportsList(reports) {
+        const tbody = document.getElementById('saved-reports-list');
+        
+        if (reports.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        No saved reports found.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = reports.map(report => `
+            <tr>
+                <td><strong>${report.title}</strong></td>
+                <td>${report.symbol}</td>
+                <td><span class="badge bg-secondary">${report.type}</span></td>
+                <td>${formatDate(report.createdAt)}</td>
+                <td>${formatDate(report.updatedAt)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadReport('${report.id}')">
+                        <i class="bi bi-eye"></i> View
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="editReport('${report.id}')">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteReport('${report.id}')">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Load report
+    async function loadReport(reportId) {
+        try {
+            const response = await fetch(`/api/reports/${reportId}`);
+            if (response.ok) {
+                const report = await response.json();
+                displayReport(report);
+            }
+        } catch (error) {
+            showError('Error loading report: ' + error.message);
+        }
+    }
+    
+    // Edit report
+    function editReport(reportId) {
+        // Load report settings into modal
+        // This would typically load the report data and populate the form
+        new bootstrap.Modal(document.getElementById('reportSettingsModal')).show();
+    }
+    
+    // Delete report
+    async function deleteReport(reportId) {
+        if (!confirm('Are you sure you want to delete this report?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/reports/${reportId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                showSuccess('Report deleted successfully');
+                loadSavedReports();
+            } else {
+                throw new Error('Failed to delete report');
+            }
+        } catch (error) {
+            showError('Error deleting report: ' + error.message);
+        }
+    }
+    
+    // Utility functions
+    function getRecommendationColor(recommendation) {
+        switch (recommendation.toLowerCase()) {
+            case 'buy':
+            case 'strong_buy':
+                return 'success';
+            case 'hold':
+                return 'warning';
+            case 'sell':
+            case 'strong_sell':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
+    }
+    
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString();
+    }
+    
+    function formatDateTime(date) {
+        return date.toLocaleString();
+    }
+</script>
+{% endblock %}

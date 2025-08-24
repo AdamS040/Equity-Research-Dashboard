@@ -1,5 +1,5 @@
 """
-Authentication and User Management System
+Authentication and User Management System for Dash
 Handles user registration, login, logout, and session management
 """
 
@@ -12,8 +12,11 @@ from functools import wraps
 import sqlite3
 import json
 
-from flask import Flask, request, session, redirect, url_for, flash, current_app
+from flask import Flask, request, session, redirect, url_for, flash, current_app, render_template_string
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+import dash
+from dash import dcc, html, Input, Output, State, callback_context
+import dash_bootstrap_components as dbc
 
 
 class User(UserMixin):
@@ -24,10 +27,18 @@ class User(UserMixin):
         self.username = username
         self.email = email
         self.role = role
-        self.is_active = True
+        self._is_active = True
     
     def get_id(self):
         return str(self.id)
+    
+    @property
+    def is_active(self):
+        return self._is_active
+    
+    @is_active.setter
+    def is_active(self, value):
+        self._is_active = value
     
     def is_authenticated(self):
         return True
@@ -128,7 +139,8 @@ class AuthManager:
     
     def _verify_password(self, password: str, salt: str, password_hash: str) -> bool:
         """Verify password against stored hash"""
-        _, computed_hash = self._hash_password(password, salt)
+        hash_obj = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+        computed_hash = hash_obj.hex()
         return computed_hash == password_hash
     
     def register_user(self, username: str, email: str, password: str, role: str = 'user') -> Dict[str, Any]:
@@ -395,9 +407,155 @@ def require_admin(f):
     return require_role('admin')(f)
 
 
-# Flask routes for authentication
+# Dash Authentication Components
+def create_login_layout():
+    """Create Dash login layout"""
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H3("🔐 Login", className="text-center mb-0")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Form([
+                            dbc.FormGroup([
+                                dbc.Label("Username"),
+                                dbc.Input(
+                                    id="login-username",
+                                    type="text",
+                                    placeholder="Enter username",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.FormGroup([
+                                dbc.Label("Password"),
+                                dbc.Input(
+                                    id="login-password",
+                                    type="password",
+                                    placeholder="Enter password",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.Button(
+                                "Login",
+                                id="login-button",
+                                color="primary",
+                                className="w-100 mb-3"
+                            ),
+                            html.Hr(),
+                            html.P([
+                                "Don't have an account? ",
+                                dbc.Button("Register", id="register-link", color="link", className="p-0")
+                            ], className="text-center mb-0")
+                        ])
+                    ])
+                ], className="shadow")
+            ], width=6, className="mx-auto")
+        ], className="justify-content-center align-items-center", style={"minHeight": "80vh"})
+    ], fluid=True)
+
+
+def create_register_layout():
+    """Create Dash register layout"""
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H3("📝 Register", className="text-center mb-0")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Form([
+                            dbc.FormGroup([
+                                dbc.Label("Username"),
+                                dbc.Input(
+                                    id="register-username",
+                                    type="text",
+                                    placeholder="Enter username",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.FormGroup([
+                                dbc.Label("Email"),
+                                dbc.Input(
+                                    id="register-email",
+                                    type="email",
+                                    placeholder="Enter email",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.FormGroup([
+                                dbc.Label("Password"),
+                                dbc.Input(
+                                    id="register-password",
+                                    type="password",
+                                    placeholder="Enter password",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.FormGroup([
+                                dbc.Label("Confirm Password"),
+                                dbc.Input(
+                                    id="register-confirm-password",
+                                    type="password",
+                                    placeholder="Confirm password",
+                                    className="mb-3"
+                                )
+                            ]),
+                            dbc.Button(
+                                "Register",
+                                id="register-button",
+                                color="success",
+                                className="w-100 mb-3"
+                            ),
+                            html.Hr(),
+                            html.P([
+                                "Already have an account? ",
+                                dbc.Button("Login", id="login-link", color="link", className="p-0")
+                            ], className="text-center mb-0")
+                        ])
+                    ])
+                ], className="shadow")
+            ], width=6, className="mx-auto")
+        ], className="justify-content-center align-items-center", style={"minHeight": "80vh"})
+    ], fluid=True)
+
+
+def create_profile_layout():
+    """Create Dash profile layout"""
+    return dbc.Container([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H3("👤 User Profile", className="mb-0")
+                    ]),
+                    dbc.CardBody([
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Account Information"),
+                                html.P(f"Username: {current_user.username if current_user.is_authenticated else 'N/A'}"),
+                                html.P(f"Email: {current_user.email if current_user.is_authenticated else 'N/A'}"),
+                                html.P(f"Role: {current_user.role if current_user.is_authenticated else 'N/A'}"),
+                            ], width=6),
+                            dbc.Col([
+                                html.H5("Quick Actions"),
+                                dbc.Button("Change Password", id="change-password-btn", color="warning", className="mb-2 w-100"),
+                                dbc.Button("View Portfolios", id="view-portfolios-btn", color="info", className="mb-2 w-100"),
+                                dbc.Button("View Reports", id="view-reports-btn", color="secondary", className="mb-2 w-100"),
+                            ], width=6)
+                        ])
+                    ])
+                ])
+            ])
+        ])
+    ], fluid=True)
+
+
+# Flask routes for authentication (for direct Flask access)
 def init_auth_routes(app: Flask, auth_manager: AuthManager):
-    """Initialize authentication routes"""
+    """Initialize authentication routes for Flask"""
     
     @app.route('/auth/login', methods=['GET', 'POST'])
     def login():
@@ -410,19 +568,59 @@ def init_auth_routes(app: Flask, auth_manager: AuthManager):
                 login_user(user)
                 next_page = request.args.get('next')
                 if not next_page or not next_page.startswith('/'):
-                    next_page = url_for('main.dashboard')
+                    next_page = '/'
                 return redirect(next_page)
             else:
                 flash('Invalid username or password', 'error')
         
-        return app.send_static_file('login.html')
+        # Return login form HTML
+        login_html = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login - Equity Research Dashboard</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="text-center">Login</h3>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="username" name="username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="password" name="password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                                </form>
+                                <hr>
+                                <p class="text-center">
+                                    Don't have an account? <a href="/auth/register">Register</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        return render_template_string(login_html)
     
     @app.route('/auth/logout')
     @login_required
     def logout():
         logout_user()
         flash('You have been logged out', 'info')
-        return redirect(url_for('auth.login'))
+        return redirect('/auth/login')
     
     @app.route('/auth/register', methods=['GET', 'POST'])
     def register():
@@ -434,16 +632,64 @@ def init_auth_routes(app: Flask, auth_manager: AuthManager):
             
             if password != confirm_password:
                 flash('Passwords do not match', 'error')
-                return app.send_static_file('register.html')
+                return redirect('/auth/register')
             
             result = auth_manager.register_user(username, email, password)
             if result['success']:
                 flash('Registration successful. Please log in.', 'success')
-                return redirect(url_for('auth.login'))
+                return redirect('/auth/login')
             else:
                 flash(result['error'], 'error')
         
-        return app.send_static_file('register.html')
+        # Return register form HTML
+        register_html = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Register - Equity Research Dashboard</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="text-center">Register</h3>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="username" name="username" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="password" name="password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-100">Register</button>
+                                </form>
+                                <hr>
+                                <p class="text-center">
+                                    Already have an account? <a href="/auth/login">Login</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        return render_template_string(register_html)
     
     @app.route('/auth/profile')
     @login_required
@@ -452,7 +698,57 @@ def init_auth_routes(app: Flask, auth_manager: AuthManager):
         portfolios = auth_manager.get_user_portfolios(current_user.id)
         reports = auth_manager.get_user_reports(current_user.id)
         
-        return app.send_static_file('profile.html')
+        # Return profile HTML
+        profile_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Profile - Equity Research Dashboard</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-5">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>User Profile</h3>
+                            </div>
+                            <div class="card-body">
+                                <h5>Account Information</h5>
+                                <p><strong>Username:</strong> {current_user.username}</p>
+                                <p><strong>Email:</strong> {current_user.email}</p>
+                                <p><strong>Role:</strong> {current_user.role}</p>
+                                
+                                <h5 class="mt-4">Portfolios ({len(portfolios)})</h5>
+                                <ul>
+                                    {''.join([f'<li>{p["name"]} - Created: {p["created_at"]}</li>' for p in portfolios])}
+                                </ul>
+                                
+                                <h5 class="mt-4">Reports ({len(reports)})</h5>
+                                <ul>
+                                    {''.join([f'<li>{r["name"]} ({r["type"]}) - Created: {r["created_at"]}</li>' for r in reports])}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Quick Actions</h5>
+                            </div>
+                            <div class="card-body">
+                                <a href="/" class="btn btn-primary w-100 mb-2">Dashboard</a>
+                                <a href="/auth/logout" class="btn btn-danger w-100">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        '''
+        return render_template_string(profile_html)
     
     @app.route('/auth/change_password', methods=['POST'])
     @login_required
@@ -463,13 +759,13 @@ def init_auth_routes(app: Flask, auth_manager: AuthManager):
         
         if new_password != confirm_password:
             flash('New passwords do not match', 'error')
-            return redirect(url_for('auth.profile'))
+            return redirect('/auth/profile')
         
         # Verify current password
         user = auth_manager.authenticate_user(current_user.username, current_password)
         if not user:
             flash('Current password is incorrect', 'error')
-            return redirect(url_for('auth.profile'))
+            return redirect('/auth/profile')
         
         # Update password
         try:
@@ -487,4 +783,4 @@ def init_auth_routes(app: Flask, auth_manager: AuthManager):
         except Exception:
             flash('Error updating password', 'error')
         
-        return redirect(url_for('auth.profile'))
+        return redirect('/auth/profile')

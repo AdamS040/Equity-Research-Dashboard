@@ -19,6 +19,7 @@ from analysis.portfolio_optimizer import PortfolioOptimizer
 from analysis.risk_analysis import RiskAnalyzer
 from visualizations.charts import ChartGenerator
 from models.comparable_analysis import ComparableAnalysis
+from app.auth import AuthManager, init_auth_routes, create_login_layout, create_register_layout, create_profile_layout
 
 def create_app(config_name='development'):
     """Create and configure the Dash application"""
@@ -35,6 +36,10 @@ def create_app(config_name='development'):
         ]
     )
     
+    # Initialize authentication manager
+    auth_manager = AuthManager(app.server)
+    init_auth_routes(app.server, auth_manager)
+    
     # Initialize data services
     market_data = MarketDataFetcher()
     analyzer = FinancialAnalyzer()
@@ -46,7 +51,7 @@ def create_app(config_name='development'):
     
     # App layout
     app.layout = dbc.Container([
-        # Header
+        # Header with authentication
         dbc.NavbarSimple(
             brand="🏦 Equity Research Dashboard",
             brand_href="#",
@@ -58,6 +63,9 @@ def create_app(config_name='development'):
                 dbc.NavItem(dbc.NavLink("Analysis", href="#analysis")),
                 dbc.NavItem(dbc.NavLink("Portfolio", href="#portfolio")),
                 dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
+                dbc.NavItem(dbc.NavLink("Profile", href="/auth/profile", external_link=True)),
+                dbc.NavItem(dbc.NavLink("Login", href="/auth/login", external_link=True)),
+                dbc.NavItem(dbc.NavLink("Logout", href="/auth/logout", external_link=True)),
             ]
         ),
         
@@ -88,6 +96,9 @@ def create_app(config_name='development'):
         dcc.Store(id="market-data-store"),
         dcc.Store(id="portfolio-data-store"),
         dcc.Store(id="analysis-data-store"),
+        
+        # Authentication status
+        html.Div(id="auth-status"),
         
         # Interval component for real-time updates
         dcc.Interval(
@@ -801,6 +812,37 @@ def create_app(config_name='development'):
         return [
             dbc.Alert("Peer comparison report functionality would be implemented here", color="info")
         ]
+    
+    # Authentication callbacks
+    @app.callback(
+        Output('auth-status', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_auth_status(n):
+        """Update authentication status display"""
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                return [
+                    dbc.Alert([
+                        html.I(className="fas fa-user-check me-2"),
+                        f"Welcome, {current_user.username}!"
+                    ], color="success", className="mb-3")
+                ]
+            else:
+                return [
+                    dbc.Alert([
+                        html.I(className="fas fa-user-times me-2"),
+                        "Please log in to access full features"
+                    ], color="warning", className="mb-3")
+                ]
+        except:
+            return [
+                dbc.Alert([
+                    html.I(className="fas fa-user-times me-2"),
+                    "Please log in to access full features"
+                ], color="warning", className="mb-3")
+            ]
     
     return app
 

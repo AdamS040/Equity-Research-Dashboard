@@ -33,7 +33,8 @@ def create_app(config_name='development'):
         ],
         meta_tags=[
             {"name": "viewport", "content": "width=device-width, initial-scale=1"}
-        ]
+        ],
+        suppress_callback_exceptions=True  # Add this to suppress callback exceptions
     )
     
     # Initialize authentication manager
@@ -585,6 +586,7 @@ def create_app(config_name='development'):
          State("period-dropdown", "value")]
     )
     def update_stock_analysis(n_clicks, symbol, period):
+        # Prevent callback from firing if no button click
         if not n_clicks or not symbol:
             return []
         
@@ -720,6 +722,7 @@ def create_app(config_name='development'):
             ]
             
         except Exception as e:
+            print(f"Error in stock analysis callback: {str(e)}")
             return [
                 dbc.Alert(f"Error analyzing {symbol}: {str(e)}", color="danger")
             ]
@@ -732,6 +735,7 @@ def create_app(config_name='development'):
          State("optimization-method", "value")]
     )
     def update_portfolio_optimization(n_clicks, stocks_input, method):
+        # Prevent callback from firing if no button click
         if not n_clicks or not stocks_input:
             return []
         
@@ -888,6 +892,7 @@ def create_app(config_name='development'):
             ]
             
         except Exception as e:
+            print(f"Error in portfolio optimization callback: {str(e)}")
             return [
                 dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
             ]
@@ -1057,13 +1062,63 @@ def create_app(config_name='development'):
                         "Please log in to access full features"
                     ], color="warning", className="mb-3")
                 ]
-        except:
+        except Exception as e:
+            print(f"Error in auth status callback: {str(e)}")
             return [
                 dbc.Alert([
                     html.I(className="fas fa-user-times me-2"),
                     "Please log in to access full features"
                 ], color="warning", className="mb-3")
             ]
+    
+    # Add error handling for missing components
+    @app.callback(
+        Output('top-movers-table', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_top_movers(n):
+        """Update top movers table"""
+        try:
+            # This is a placeholder - you can implement actual top movers logic here
+            return [
+                dbc.Alert("Top movers data will be displayed here", color="info")
+            ]
+        except Exception as e:
+            print(f"Error in top movers callback: {str(e)}")
+            return [
+                dbc.Alert("Unable to load top movers data", color="warning")
+            ]
+    
+    @app.callback(
+        Output('sector-performance-chart', 'figure'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_sector_performance(n):
+        """Update sector performance chart"""
+        try:
+            # Create a sample sector performance chart
+            fig = go.Figure()
+            sectors = ['Technology', 'Healthcare', 'Financials', 'Consumer Discretionary', 'Communication Services']
+            performance = [2.5, 1.8, -0.5, 3.2, 1.1]  # Sample data
+            
+            fig.add_trace(go.Bar(
+                x=sectors,
+                y=performance,
+                marker_color=['green' if p > 0 else 'red' for p in performance]
+            ))
+            
+            fig.update_layout(
+                title="Sector Performance (1 Day)",
+                xaxis_title="Sector",
+                yaxis_title="Performance (%)",
+                template="plotly_white",
+                height=300
+            )
+            
+            return fig
+        except Exception as e:
+            print(f"Error in sector performance callback: {str(e)}")
+            return go.Figure()
     
     return app
 

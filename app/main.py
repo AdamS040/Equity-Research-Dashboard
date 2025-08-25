@@ -24,6 +24,10 @@ from app.auth import AuthManager, init_auth_routes, create_login_layout, create_
 def create_app(config_name='development'):
     """Create and configure the Dash application"""
     
+    # Import configuration
+    from config import config
+    config_class = config.get(config_name, config['default'])
+    
     # Initialize Dash app with Bootstrap theme
     app = dash.Dash(
         __name__,
@@ -36,6 +40,10 @@ def create_app(config_name='development'):
         ],
         suppress_callback_exceptions=True  # Add this to suppress callback exceptions
     )
+    
+    # Set Flask secret key for session management
+    app.server.config['SECRET_KEY'] = config_class.SECRET_KEY
+    app.server.config['DEBUG'] = config_class.DEBUG
     
     # Initialize authentication manager
     auth_manager = AuthManager(app.server)

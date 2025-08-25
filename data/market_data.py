@@ -260,64 +260,121 @@ class MarketDataFetcher:
             logger.error(f"Error fetching real-time quote for {symbol}: {str(e)}")
             return {}
     
-    def get_top_gainers_losers(self, market: str = 'US') -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_top_gainers_losers(self, market: str = 'US', limit: int = 10) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Get top gainers and losers (simplified version)
+        Get top gainers and losers with enhanced data
         
         Args:
             market (str): Market region
+            limit (int): Number of stocks to return for each category
             
         Returns:
             Tuple[pd.DataFrame, pd.DataFrame]: (gainers, losers)
         """
-        # Popular stocks for demo purposes
+        # Extended list of popular stocks for comprehensive analysis
         popular_stocks = [
             'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA',
             'JPM', 'V', 'JNJ', 'WMT', 'PG', 'UNH', 'MA', 'HD', 'BAC',
-            'DIS', 'ADBE', 'NFLX', 'CRM', 'PYPL', 'INTC', 'AMD', 'ORCL'
+            'DIS', 'ADBE', 'NFLX', 'CRM', 'PYPL', 'INTC', 'AMD', 'ORCL',
+            'NKE', 'KO', 'PEP', 'ABT', 'TMO', 'AVGO', 'COST', 'MRK',
+            'PFE', 'TXN', 'ACN', 'DHR', 'LLY', 'VZ', 'CMCSA', 'BMY',
+            'QCOM', 'HON', 'RTX', 'LOW', 'UPS', 'SPGI', 'T', 'DE',
+            'CAT', 'MMC', 'AXP', 'GS', 'MS', 'BLK', 'SCHW', 'USB',
+            'PNC', 'COF', 'TFC', 'KEY', 'RF', 'HBAN', 'FITB', 'ZION'
         ]
         
         try:
+            # Configure session with retry strategy
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            
+            # Set proper headers to mimic a real browser
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
+            
             # Get current data for popular stocks
-            data = yf.download(popular_stocks, period='2d')
-            
-            if data.empty:
-                return pd.DataFrame(), pd.DataFrame()
-            
-            # Calculate daily changes
             changes = []
-            for symbol in popular_stocks:
+            successful_fetches = 0
+            
+            for i, symbol in enumerate(popular_stocks):
                 try:
-                    if symbol in data['Close'].columns:
-                        current = data['Close'][symbol].iloc[-1]
-                        previous = data['Close'][symbol].iloc[-2]
+                    # Add delay between requests to avoid rate limiting
+                    if i > 0:
+                        time.sleep(0.1)
+                    
+                    ticker = yf.Ticker(symbol)
+                    ticker._session = session
+                    
+                    # Get 2 days of data to calculate change
+                    hist = ticker.history(period='2d', interval='1d')
+                    
+                    if not hist.empty and len(hist) >= 2:
+                        current = hist['Close'].iloc[-1]
+                        previous = hist['Close'].iloc[-2]
                         change = current - previous
                         change_percent = (change / previous) * 100
+                        volume = hist['Volume'].iloc[-1] if 'Volume' in hist.columns else 0
                         
                         changes.append({
                             'Symbol': symbol,
                             'Price': current,
                             'Change': change,
-                            'Change%': change_percent
+                            'Change%': change_percent,
+                            'Volume': volume,
+                            'Market_Cap': self._get_market_cap(symbol, current)
                         })
-                except:
+                        successful_fetches += 1
+                        
+                        # Limit to first 50 successful fetches for performance
+                        if successful_fetches >= 50:
+                            break
+                            
+                except Exception as e:
+                    logger.warning(f"Error fetching {symbol}: {e}")
                     continue
             
             if not changes:
+                logger.warning("No data available for top movers")
                 return pd.DataFrame(), pd.DataFrame()
             
+            # Create DataFrame and sort by percentage change
             df = pd.DataFrame(changes)
             df = df.sort_values('Change%', ascending=False)
             
-            # Top 10 gainers and losers
-            gainers = df.head(10)
-            losers = df.tail(10)
+            # Top gainers and losers
+            gainers = df.head(limit)
+            losers = df.tail(limit)
             
+            logger.info(f"Successfully fetched top movers: {len(gainers)} gainers, {len(losers)} losers")
             return gainers, losers
             
         except Exception as e:
             logger.error(f"Error fetching top movers: {str(e)}")
             return pd.DataFrame(), pd.DataFrame()
+    
+    def _get_market_cap(self, symbol: str, current_price: float) -> float:
+        """Helper method to estimate market cap"""
+        try:
+            # This is a simplified market cap calculation
+            # In a real implementation, you'd get this from the stock info
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            return info.get('marketCap', 0) / 1e9  # Convert to billions
+        except:
+            return 0.0
     
     def get_earnings_calendar(self, symbol: str) -> pd.DataFrame:
         """

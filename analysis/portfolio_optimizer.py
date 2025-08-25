@@ -37,7 +37,7 @@ class PortfolioOptimizer:
         """
         try:
             # Download data
-            data = yf.download(symbols, period=period, progress=False)['Close']
+            data = yf.download(symbols, period=period)['Close']
             
             # Handle single stock case
             if len(symbols) == 1:

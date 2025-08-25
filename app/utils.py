@@ -537,7 +537,7 @@ def fetch_stock_data_robust(symbol: str, period: str = '1y', interval: str = '1d
     
     try:
         ticker = get_yfinance_ticker(symbol, session)
-        data = ticker.history(period=period, interval=interval, progress=False)
+        data = ticker.history(period=period, interval=interval)
         
         if not data.empty:
             logger.info(f"Successfully fetched data for {symbol}")
@@ -583,7 +583,7 @@ def fetch_market_data_with_fallbacks(symbols: list, period: str = '2d', interval
         try:
             # Try primary symbol first
             ticker = get_yfinance_ticker(symbol, session)
-            data = ticker.history(period=period, interval=interval, progress=False)
+            data = ticker.history(period=period, interval=interval)
             
             # If primary fails, try alternatives
             if data.empty and symbol in symbol_alternatives:
@@ -591,7 +591,7 @@ def fetch_market_data_with_fallbacks(symbols: list, period: str = '2d', interval
                     try:
                         logger.info(f"Trying alternative symbol {alt_symbol} for {symbol}")
                         ticker = get_yfinance_ticker(alt_symbol, session)
-                        data = ticker.history(period=period, interval=interval, progress=False)
+                        data = ticker.history(period=period, interval=interval)
                         if not data.empty:
                             logger.info(f"Successfully fetched data using alternative {alt_symbol}")
                             break
@@ -642,7 +642,7 @@ def get_market_overview_robust():
         try:
             # Try primary symbol
             ticker = get_yfinance_ticker(symbol, session)
-            hist = ticker.history(period='2d', interval='1d', progress=False)
+            hist = ticker.history(period='2d', interval='1d')
             
             # If primary fails, try alternatives
             if hist.empty:
@@ -657,7 +657,7 @@ def get_market_overview_robust():
                     alt_symbol = alternatives[symbol]
                     logger.info(f"Trying alternative {alt_symbol} for {symbol}")
                     ticker = get_yfinance_ticker(alt_symbol, session)
-                    hist = ticker.history(period='2d', interval='1d', progress=False)
+                    hist = ticker.history(period='2d', interval='1d')
             
             if not hist.empty and len(hist) >= 2:
                 current = hist['Close'].iloc[-1]

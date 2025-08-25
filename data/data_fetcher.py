@@ -84,7 +84,7 @@ class DataFetcher:
             ticker._session = session
             
             # Try to get data with progress disabled
-            data = ticker.history(period=period, interval=interval, progress=False)
+            data = ticker.history(period=period, interval=interval)
             
             if not data.empty:
                 # Cache the data
@@ -144,7 +144,7 @@ class DataFetcher:
             if self._is_cache_valid(cache_key):
                 return self.cache[cache_key]
             
-            data = yf.download(symbols, period=period, progress=False)
+            data = yf.download(symbols, period=period)
             
             if not data.empty:
                 # Cache the data

@@ -115,7 +115,7 @@ class MarketDataFetcher:
             ticker._session = session
             
             # Try to get data with progress disabled
-            data = ticker.history(period=period, interval=interval, progress=False)
+            data = ticker.history(period=period, interval=interval)
             
             if not data.empty:
                 # Cache the data

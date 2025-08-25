@@ -452,14 +452,14 @@ def create_app(config_name='development'):
                     ticker._session = session
                     
                     # Use a shorter period to reduce data load
-                    hist = ticker.history(period='2d', interval='1d', progress=False)
+                    hist = ticker.history(period='2d', interval='1d')
                     
                     if hist.empty or len(hist) < 2:
                         # Try fallback symbol
                         symbol = config['fallback']
                         ticker = yf.Ticker(symbol)
                         ticker._session = session
-                        hist = ticker.history(period='2d', interval='1d', progress=False)
+                        hist = ticker.history(period='2d', interval='1d')
                     
                     if not hist.empty and len(hist) >= 2:
                         current = hist['Close'].iloc[-1]
@@ -509,7 +509,7 @@ def create_app(config_name='development'):
                 try:
                     ticker = yf.Ticker(symbol)
                     ticker._session = session
-                    hist = ticker.history(period='5d', interval='1d', progress=False)
+                    hist = ticker.history(period='5d', interval='1d')
                     
                     if hist.empty:
                         # Try fallback
@@ -518,7 +518,7 @@ def create_app(config_name='development'):
                         elif symbol == '^IXIC':
                             ticker = yf.Ticker('QQQ')
                         ticker._session = session
-                        hist = ticker.history(period='5d', interval='1d', progress=False)
+                        hist = ticker.history(period='5d', interval='1d')
                     
                     if not hist.empty:
                         fig.add_trace(go.Scatter(
@@ -620,7 +620,7 @@ def create_app(config_name='development'):
             stock = yf.Ticker(symbol.upper())
             stock._session = session
             
-            hist = stock.history(period=period, progress=False)
+            hist = stock.history(period=period)
             info = stock.info
             
             if hist.empty:
@@ -768,7 +768,7 @@ def create_app(config_name='development'):
             
             # Fetch data with robust error handling
             try:
-                data = yf.download(symbols, period='1y', progress=False)['Close']
+                data = yf.download(symbols, period='1y')['Close']
                 returns = data.pct_change().dropna()
             except Exception as e:
                 print(f"Error downloading portfolio data: {e}")

@@ -959,9 +959,9 @@ def create_app(config_name='development'):
     
     # Callback to clear results when inputs change
     @app.callback(
-        [Output("portfolio-results", "children"),
-         Output("portfolio-comparison", "children"),
-         Output("portfolio-export", "children")],
+        [Output("portfolio-results", "children", allow_duplicate=True),
+         Output("portfolio-comparison", "children", allow_duplicate=True),
+         Output("portfolio-export", "children", allow_duplicate=True)],
         [Input("portfolio-stocks-input", "value"),
          Input("optimization-method", "value"),
          Input("portfolio-period", "value"),
@@ -970,7 +970,8 @@ def create_app(config_name='development'):
          Input("min-weight-input", "value"),
          Input("risk-free-rate-input", "value"),
          Input("rebalancing-frequency", "value")],
-        [State("optimize-button", "n_clicks")]
+        [State("optimize-button", "n_clicks")],
+        prevent_initial_call=True
     )
     def clear_portfolio_results_on_input_change(stocks_input, method, period, target_return,
                                               max_weight, min_weight, risk_free_rate, rebalancing_frequency, n_clicks):

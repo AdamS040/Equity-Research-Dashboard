@@ -287,7 +287,7 @@ def create_app(config_name='development'):
                                         id="optimization-method",
                                         options=[
                                             {'label': 'Maximum Sharpe Ratio', 'value': 'max_sharpe'},
-                                            {'label': 'Minimum Volatility', 'value': 'min_vol'},
+                                            {'label': 'Minimum Volatility', 'value': 'min_volatility'},
                                             {'label': 'Equal Weight', 'value': 'equal_weight'},
                                             {'label': 'Risk Parity', 'value': 'risk_parity'},
                                             {'label': 'Target Return', 'value': 'target_return'},
@@ -1120,7 +1120,7 @@ def create_app(config_name='development'):
     
     def create_portfolio_comparison_display(result, symbols, method):
         """Create the portfolio comparison display"""
-        if 'efficient_frontier' not in result:
+        if 'efficient_frontier' not in result or not result['efficient_frontier']:
             return []
         
         efficient_frontier = result['efficient_frontier']

@@ -489,26 +489,44 @@ class PortfolioOptimizer:
         stock_metrics = {}
         for symbol in symbols:
             if symbol in returns.columns:
-                stock_returns = returns[symbol]
-                annual_return = stock_returns.mean() * 252
-                annual_volatility = stock_returns.std() * np.sqrt(252)
-                sharpe_ratio = (annual_return - self.risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
-                
-                # Calculate cumulative returns for performance chart
-                cumulative_returns = (1 + stock_returns).cumprod()
-                
-                stock_metrics[symbol] = {
-                    'expected_return': annual_return,
-                    'volatility': annual_volatility,
-                    'sharpe_ratio': sharpe_ratio,
-                    'current_price': current_prices.get(symbol, 0),
-                    'weight': optimal_weights[list(returns.columns).index(symbol)],
-                    'dates': returns.index.tolist(),
-                    'cumulative_returns': cumulative_returns.tolist()
-                }
+                try:
+                    stock_returns = returns[symbol]
+                    annual_return = stock_returns.mean() * 252
+                    annual_volatility = stock_returns.std() * np.sqrt(252)
+                    sharpe_ratio = (annual_return - self.risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
+                    
+                    # Calculate cumulative returns for performance chart
+                    cumulative_returns = (1 + stock_returns).cumprod()
+                    
+                    # Get the weight for this symbol
+                    symbol_index = list(returns.columns).index(symbol)
+                    weight = optimal_weights[symbol_index] if symbol_index < len(optimal_weights) else 0
+                    
+                    stock_metrics[symbol] = {
+                        'expected_return': annual_return,
+                        'volatility': annual_volatility,
+                        'sharpe_ratio': sharpe_ratio,
+                        'current_price': current_prices.get(symbol, 0),
+                        'weight': weight,
+                        'dates': returns.index.tolist(),
+                        'cumulative_returns': cumulative_returns.tolist()
+                    }
+                except Exception as e:
+                    print(f"Error calculating metrics for {symbol}: {e}")
+                    # Add fallback data
+                    stock_metrics[symbol] = {
+                        'expected_return': 0.0,
+                        'volatility': 0.0,
+                        'sharpe_ratio': 0.0,
+                        'current_price': current_prices.get(symbol, 0),
+                        'weight': 0.0,
+                        'dates': returns.index.tolist(),
+                        'cumulative_returns': [1.0] * len(returns.index)
+                    }
         
         # Calculate efficient frontier for comparison
-        efficient_frontier = self.generate_efficient_frontier(returns, n_portfolios=50, constraints=constraints)
+        efficient_frontier_df = self.generate_efficient_frontier(returns, n_portfolios=50, constraints=constraints)
+        efficient_frontier = efficient_frontier_df.to_dict('records') if not efficient_frontier_df.empty else []
         
         return {
             'symbols': symbols,

@@ -123,15 +123,20 @@ class PortfolioOptimizer:
         """
         n_assets = len(returns.columns)
         
+        # Calculate expected returns and covariance matrix
+        expected_returns = returns.mean() * 252
+        cov_matrix = returns.cov() * 252
+        
         # Objective function (negative Sharpe ratio to minimize)
         def neg_sharpe_ratio(weights):
-            portfolio_return = np.sum(returns.mean() * weights) * 252
-            portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(returns.cov() * 252, weights)))
+            portfolio_return = np.dot(weights, expected_returns)
+            portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
             
             if portfolio_volatility == 0:
-                return -np.inf
+                return 1e6  # Large penalty for zero volatility
             
-            return -(portfolio_return - self.risk_free_rate) / portfolio_volatility
+            sharpe_ratio = (portfolio_return - self.risk_free_rate) / portfolio_volatility
+            return -sharpe_ratio  # Negative because we minimize
         
         # Constraints
         constraints_list = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1}]  # Weights sum to 1
@@ -145,21 +150,44 @@ class PortfolioOptimizer:
             
         bounds = tuple((min_weight, max_weight) for _ in range(n_assets))
         
-        # Initial guess (equal weights)
-        x0 = np.array([1.0 / n_assets] * n_assets)
+        # Try multiple initial guesses for better optimization
+        best_result = None
+        best_sharpe = -np.inf
         
-        # Optimize
-        try:
-            result = minimize(neg_sharpe_ratio, x0, method='SLSQP', 
-                            bounds=bounds, constraints=constraints_list)
-            
-            if result.success:
-                return result.x
-            else:
-                # Fallback to equal weights
-                return x0
-        except:
-            return x0
+        initial_guesses = [
+            np.array([1.0 / n_assets] * n_assets),  # Equal weights
+            np.random.dirichlet(np.ones(n_assets)),  # Random weights
+            np.array([0.5] + [0.5/(n_assets-1)] * (n_assets-1)),  # Concentrated
+        ]
+        
+        for x0 in initial_guesses:
+            try:
+                result = minimize(neg_sharpe_ratio, x0, method='SLSQP', 
+                                bounds=bounds, constraints=constraints_list,
+                                options={'maxiter': 1000})
+                
+                if result.success:
+                    # Calculate Sharpe ratio for this result
+                    weights = result.x
+                    portfolio_return = np.dot(weights, expected_returns)
+                    portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+                    
+                    if portfolio_volatility > 0:
+                        sharpe_ratio = (portfolio_return - self.risk_free_rate) / portfolio_volatility
+                        
+                        if sharpe_ratio > best_sharpe:
+                            best_sharpe = sharpe_ratio
+                            best_result = weights
+                            
+            except Exception as e:
+                print(f"Optimization attempt failed: {e}")
+                continue
+        
+        if best_result is not None:
+            return best_result
+        else:
+            # Fallback to equal weights
+            return np.array([1.0 / n_assets] * n_assets)
     
     def optimize_min_volatility(self, returns: pd.DataFrame, constraints: Optional[Dict] = None) -> np.array:
         """
@@ -219,15 +247,17 @@ class PortfolioOptimizer:
             np.array: Optimal weights
         """
         n_assets = len(returns.columns)
+        expected_returns = returns.mean() * 252
+        cov_matrix = returns.cov() * 252
         
         # Objective function (portfolio volatility)
         def portfolio_volatility(weights):
-            return np.sqrt(np.dot(weights.T, np.dot(returns.cov() * 252, weights)))
+            return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
         
         # Constraints
         constraints_list = [
             {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},  # Weights sum to 1
-            {'type': 'eq', 'fun': lambda x: np.sum(returns.mean() * x) * 252 - target_return}  # Target return
+            {'type': 'eq', 'fun': lambda x: np.dot(x, expected_returns) - target_return}  # Target return
         ]
         
         # Bounds
@@ -245,7 +275,8 @@ class PortfolioOptimizer:
         # Optimize
         try:
             result = minimize(portfolio_volatility, x0, method='SLSQP',
-                            bounds=bounds, constraints=constraints_list)
+                            bounds=bounds, constraints=constraints_list,
+                            options={'maxiter': 1000})
             
             if result.success:
                 return result.x
@@ -403,15 +434,17 @@ class PortfolioOptimizer:
     
     def optimize_portfolio(self, symbols: List[str], method: str = 'max_sharpe',
                          period: str = '2y', constraints: Optional[Dict] = None,
+                         target_return: Optional[float] = None,
                          **kwargs) -> Dict:
         """
         Main portfolio optimization function
         
         Args:
             symbols (List[str]): List of stock symbols
-            method (str): Optimization method
+            method (str): Optimization method ('max_sharpe', 'min_volatility', 'target_return', 'equal_weight', 'risk_parity')
             period (str): Historical data period
             constraints (Dict, optional): Portfolio constraints
+            target_return (float, optional): Target return for target_return method
             **kwargs: Additional parameters
             
         Returns:
@@ -434,7 +467,8 @@ class PortfolioOptimizer:
         elif method == 'min_volatility':
             optimal_weights = self.optimize_min_volatility(returns, constraints)
         elif method == 'target_return':
-            target_return = kwargs.get('target_return', 0.10)
+            if target_return is None:
+                target_return = returns.mean().mean() * 252 * 1.1  # 10% above average
             optimal_weights = self.optimize_target_return(returns, target_return, constraints)
         elif method == 'risk_parity':
             optimal_weights = self.risk_parity_optimization(returns)
@@ -464,6 +498,9 @@ class PortfolioOptimizer:
                     'weight': optimal_weights[list(returns.columns).index(symbol)]
                 }
         
+        # Calculate efficient frontier for comparison
+        efficient_frontier = self.generate_efficient_frontier(returns, n_portfolios=50, constraints=constraints)
+        
         return {
             'symbols': symbols,
             'optimal_weights': dict(zip(returns.columns, optimal_weights)),
@@ -472,5 +509,7 @@ class PortfolioOptimizer:
             'optimization_method': method,
             'period': period,
             'price_data': prices,
-            'returns_data': returns
+            'returns_data': returns,
+            'efficient_frontier': efficient_frontier,
+            'target_return': target_return if method == 'target_return' else None
         }

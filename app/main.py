@@ -799,30 +799,38 @@ def create_app(config_name='development'):
                     dbc.Alert(f"Error fetching portfolio data: {str(e)}. Please check your symbols and try again.", color="danger")
                 ]
             
-            # Calculate portfolio metrics based on method
-            if method == 'equal_weight':
-                weights = np.array([1/len(symbols)] * len(symbols))
-            else:
-                # Simple optimization (you can enhance this)
-                cov_matrix = returns.cov()
-                if method == 'min_vol':
-                    # Minimum volatility
-                    inv_cov = np.linalg.pinv(cov_matrix)
-                    ones = np.ones((len(symbols), 1))
-                    weights = (inv_cov @ ones) / (ones.T @ inv_cov @ ones)
-                    weights = weights.flatten()
-                else:  # max_sharpe
-                    # Simple equal weight for now (enhance with proper optimization)
-                    weights = np.array([1/len(symbols)] * len(symbols))
+            # Use the proper portfolio optimizer
+            portfolio_optimizer = PortfolioOptimizer(risk_free_rate=0.02)
+            
+            # Optimize portfolio using the proper optimizer
+            result = portfolio_optimizer.optimize_portfolio(
+                symbols=symbols,
+                method=method,
+                period='1y',
+                constraints={'min_weight': 0.01, 'max_weight': 0.4}
+            )
+            
+            if 'error' in result:
+                return [
+                    dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
+                ]
+            
+            # Extract results from the optimizer
+            optimal_weights = result['optimal_weights']
+            portfolio_metrics = result['portfolio_metrics']
+            stock_metrics = result['stock_metrics']
+            
+            # Convert weights to array for calculations
+            weights = np.array([optimal_weights[symbol] for symbol in symbols])
             
             # Ensure weights sum to 1 and are positive
             weights = np.abs(weights)
             weights = weights / weights.sum()
             
-            # Calculate portfolio metrics
-            portfolio_return = np.sum(returns.mean() * weights) * 252
-            portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(returns.cov() * 252, weights)))
-            sharpe_ratio = portfolio_return / portfolio_volatility if portfolio_volatility > 0 else 0
+            # Use optimized portfolio metrics
+            portfolio_return = portfolio_metrics['annual_return']
+            portfolio_volatility = portfolio_metrics['annual_volatility']
+            sharpe_ratio = portfolio_metrics['sharpe_ratio']
             
             # Create allocation chart
             allocation_fig = go.Figure(data=[go.Pie(
@@ -915,6 +923,17 @@ def create_app(config_name='development'):
             return [
                 dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
             ]
+    
+    # Callback to show/hide target return input
+    @app.callback(
+        Output("target-return-container", "style"),
+        [Input("optimization-method", "value")]
+    )
+    def toggle_target_return_input(method):
+        if method == 'target_return':
+            return {"display": "block"}
+        else:
+            return {"display": "none"}
     
     # Research report callback
     @app.callback(

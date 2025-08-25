@@ -1144,7 +1144,7 @@ def create_app(config_name='development'):
                     dbc.Card([
                         dbc.CardHeader("Asset Allocation"),
                                                  dbc.CardBody([
-                             dcc.Graph(figure=allocation_fig, key=f"allocation-{method}-{timestamp}")
+                             dcc.Graph(figure=allocation_fig)
                          ])
                     ], className="portfolio-chart-card")
                 ], width=6),
@@ -1152,7 +1152,7 @@ def create_app(config_name='development'):
                     dbc.Card([
                         dbc.CardHeader("Performance Comparison"),
                                                  dbc.CardBody([
-                             dcc.Graph(figure=performance_fig, key=f"performance-{method}-{timestamp}")
+                             dcc.Graph(figure=performance_fig)
                          ])
                     ], className="portfolio-chart-card")
                 ], width=6)

@@ -393,7 +393,16 @@ def create_app(config_name='development'):
             ], className="mt-3"),
             
             # Loading State
-            html.Div(id="portfolio-loading", style={"display": "none"}),
+            html.Div(id="portfolio-loading", style={"display": "none"}, children=[
+                dbc.Spinner(
+                    html.Div([
+                        html.H4("Optimizing Portfolio...", className="text-center mb-3"),
+                        html.P("Please wait while we calculate the optimal portfolio allocation.", className="text-center text-muted")
+                    ]),
+                    color="primary",
+                    size="lg"
+                )
+            ]),
             
             # Portfolio Results Section
             html.Div(id="portfolio-results", className="mt-4"),
@@ -862,10 +871,14 @@ def create_app(config_name='development'):
         if not n_clicks or not stocks_input:
             return [], [], [], {"display": "none"}
         
-        # Show loading state
+        # Show loading state immediately
         loading_style = {"display": "block"}
         
         try:
+            # Clear any previous results first
+            print(f"Portfolio optimization triggered - n_clicks: {n_clicks}")
+            print(f"Input parameters: symbols={stocks_input}, method={method}, period={period}")
+            
             # Parse stock symbols
             symbols = [s.strip().upper() for s in stocks_input.split(',')]
             
@@ -874,11 +887,14 @@ def create_app(config_name='development'):
                 error_alert = dbc.Alert("Please enter at least 2 stock symbols separated by commas.", color="warning")
                 return [error_alert], [], [], {"display": "none"}
             
-            # Set default values
+            # Set default values and convert to proper types
             period = period or '1y'
-            risk_free_rate = risk_free_rate or 0.02
-            max_weight = max_weight or 0.4
-            min_weight = min_weight or 0.01
+            risk_free_rate = float(risk_free_rate) / 100 if risk_free_rate else 0.02  # Convert percentage to decimal
+            max_weight = float(max_weight) / 100 if max_weight else 0.4  # Convert percentage to decimal
+            min_weight = float(min_weight) / 100 if min_weight else 0.01  # Convert percentage to decimal
+            target_return = float(target_return) / 100 if target_return else None  # Convert percentage to decimal
+            
+            print(f"Processed parameters: risk_free_rate={risk_free_rate}, max_weight={max_weight}, min_weight={min_weight}")
             
             # Create constraints dictionary
             constraints = {
@@ -890,6 +906,7 @@ def create_app(config_name='development'):
             portfolio_optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate)
             
             # Optimize portfolio
+            print(f"Starting portfolio optimization for {len(symbols)} symbols: {symbols}")
             result = portfolio_optimizer.optimize_portfolio(
                 symbols=symbols,
                 method=method,
@@ -909,8 +926,13 @@ def create_app(config_name='development'):
                     error_alert = dbc.Alert(f"Invalid portfolio optimization result: missing {key}", color="danger")
                     return [error_alert], [], [], {"display": "none"}
             
-            # Create results displays
-            results_display = create_portfolio_results_display(result, symbols, method)
+            print(f"Portfolio optimization completed successfully")
+            print(f"Portfolio metrics: {result['portfolio_metrics']}")
+            
+            # Create results displays with timestamp for unique keys
+            import time
+            timestamp = int(time.time())
+            results_display = create_portfolio_results_display(result, symbols, method, timestamp)
             comparison_display = create_portfolio_comparison_display(result, symbols, method)
             export_display = create_portfolio_export_display(result, symbols, method)
             
@@ -935,12 +957,42 @@ def create_app(config_name='development'):
         else:
             return {"display": "none"}, {"display": "none"}
     
+    # Callback to clear results when inputs change
+    @app.callback(
+        [Output("portfolio-results", "children"),
+         Output("portfolio-comparison", "children"),
+         Output("portfolio-export", "children")],
+        [Input("portfolio-stocks-input", "value"),
+         Input("optimization-method", "value"),
+         Input("portfolio-period", "value"),
+         Input("target-return-input", "value"),
+         Input("max-weight-input", "value"),
+         Input("min-weight-input", "value"),
+         Input("risk-free-rate-input", "value"),
+         Input("rebalancing-frequency", "value")],
+        [State("optimize-button", "n_clicks")]
+    )
+    def clear_portfolio_results_on_input_change(stocks_input, method, period, target_return,
+                                              max_weight, min_weight, risk_free_rate, rebalancing_frequency, n_clicks):
+        """Clear portfolio results when any input parameter changes"""
+        # Only clear if the optimize button hasn't been clicked yet
+        if not n_clicks:
+            return [], [], []
+        
+        # Return current values to prevent clearing when button is clicked
+        raise dash.exceptions.PreventUpdate
+    
     # Helper functions for portfolio optimization display
-    def create_portfolio_results_display(result, symbols, method):
+    def create_portfolio_results_display(result, symbols, method, timestamp=None):
         """Create the main portfolio results display"""
         optimal_weights = result['optimal_weights']
         portfolio_metrics = result['portfolio_metrics']
         stock_metrics = result['stock_metrics']
+        
+        # Use timestamp or current time for unique keys
+        if timestamp is None:
+            import time
+            timestamp = int(time.time())
         
         # Convert weights to array for calculations
         weights = np.array([optimal_weights[symbol] for symbol in symbols])
@@ -982,7 +1034,7 @@ def create_app(config_name='development'):
             textposition='inside'
         )])
         allocation_fig.update_layout(
-            title="Asset Allocation",
+            title=f"Asset Allocation - {method.replace('_', ' ').title()}",
             template="plotly_white",
             height=400,
             showlegend=True
@@ -1019,7 +1071,7 @@ def create_app(config_name='development'):
                 print(f"Error adding portfolio performance: {e}")
         
         performance_fig.update_layout(
-            title="Performance Comparison",
+            title=f"Performance Comparison - {method.replace('_', ' ').title()}",
             xaxis_title="Date",
             yaxis_title="Cumulative Return",
             template="plotly_white",
@@ -1090,17 +1142,17 @@ def create_app(config_name='development'):
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader("Asset Allocation"),
-                        dbc.CardBody([
-                            dcc.Graph(figure=allocation_fig)
-                        ])
+                                                 dbc.CardBody([
+                             dcc.Graph(figure=allocation_fig, key=f"allocation-{method}-{timestamp}")
+                         ])
                     ], className="portfolio-chart-card")
                 ], width=6),
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader("Performance Comparison"),
-                        dbc.CardBody([
-                            dcc.Graph(figure=performance_fig)
-                        ])
+                                                 dbc.CardBody([
+                             dcc.Graph(figure=performance_fig, key=f"performance-{method}-{timestamp}")
+                         ])
                     ], className="portfolio-chart-card")
                 ], width=6)
             ], className="mb-4"),

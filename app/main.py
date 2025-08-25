@@ -265,10 +265,11 @@ def create_app(config_name='development'):
     # Portfolio content layout  
     def create_portfolio_layout():
         return [
+            # Portfolio Configuration Section
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
-                        dbc.CardHeader("Portfolio Construction"),
+                        dbc.CardHeader("Portfolio Configuration"),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
@@ -288,27 +289,120 @@ def create_app(config_name='development'):
                                             {'label': 'Maximum Sharpe Ratio', 'value': 'max_sharpe'},
                                             {'label': 'Minimum Volatility', 'value': 'min_vol'},
                                             {'label': 'Equal Weight', 'value': 'equal_weight'},
+                                            {'label': 'Risk Parity', 'value': 'risk_parity'},
+                                            {'label': 'Target Return', 'value': 'target_return'},
                                         ],
                                         value='max_sharpe'
                                     )
-                                ], width=4),
+                                ], width=6),
+                            ], className="mb-3"),
+                            dbc.Row([
                                 dbc.Col([
-                                    html.Br(),
+                                    dbc.Label("Analysis Period:"),
+                                    dcc.Dropdown(
+                                        id="portfolio-period",
+                                        options=[
+                                            {'label': '6 Months', 'value': '6mo'},
+                                            {'label': '1 Year', 'value': '1y'},
+                                            {'label': '2 Years', 'value': '2y'},
+                                            {'label': '5 Years', 'value': '5y'},
+                                        ],
+                                        value='1y'
+                                    )
+                                ], width=3),
+                                dbc.Col([
+                                    dbc.Label("Target Return (%):", id="target-return-label"),
+                                    dbc.Input(
+                                        id="target-return-input",
+                                        type="number",
+                                        placeholder="12.5",
+                                        step=0.1,
+                                        style={"display": "none"}
+                                    )
+                                ], width=3),
+                                dbc.Col([
+                                    dbc.Label("Risk-Free Rate (%):"),
+                                    dbc.Input(
+                                        id="risk-free-rate-input",
+                                        type="number",
+                                        placeholder="2.0",
+                                        value=2.0,
+                                        step=0.1
+                                    )
+                                ], width=3),
+                                dbc.Col([
+                                    dbc.Label("Rebalancing Frequency:"),
+                                    dcc.Dropdown(
+                                        id="rebalancing-frequency",
+                                        options=[
+                                            {'label': 'Monthly', 'value': 'monthly'},
+                                            {'label': 'Quarterly', 'value': 'quarterly'},
+                                            {'label': 'Annually', 'value': 'annually'},
+                                        ],
+                                        value='quarterly'
+                                    )
+                                ], width=3),
+                            ], className="mb-3"),
+                            dbc.Row([
+                                dbc.Col([
                                     dbc.Button(
-                                        "Optimize",
+                                        "Optimize Portfolio",
                                         id="optimize-button",
                                         color="success",
-                                        className="mt-2"
+                                        size="lg",
+                                        className="w-100"
                                     )
-                                ], width=2),
+                                ], width=12),
                             ])
                         ])
-                    ])
+                    ], className="portfolio-config-section")
                 ], width=12),
             ]),
             
-            # Portfolio Results
-            html.Div(id="portfolio-results", className="mt-4")
+            # Portfolio Constraints Section
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Portfolio Constraints"),
+                        dbc.CardBody([
+                            dbc.Row([
+                                dbc.Col([
+                                    dbc.Label("Maximum Weight per Stock (%):"),
+                                    dbc.Input(
+                                        id="max-weight-input",
+                                        type="number",
+                                        placeholder="40",
+                                        value=40,
+                                        step=1
+                                    )
+                                ], width=6),
+                                dbc.Col([
+                                    dbc.Label("Minimum Weight per Stock (%):"),
+                                    dbc.Input(
+                                        id="min-weight-input",
+                                        type="number",
+                                        placeholder="1",
+                                        value=1,
+                                        step=1
+                                    )
+                                ], width=6),
+                            ])
+                        ])
+                    ], className="portfolio-constraints-section")
+                ], width=12),
+            ], className="mt-3"),
+            
+            # Loading State
+            html.Div(id="portfolio-loading", style={"display": "none"}),
+            
+            # Portfolio Results Section
+            html.Div(id="portfolio-results", className="mt-4"),
+            
+            # Portfolio Comparison Section
+            html.Div(id="portfolio-comparison", className="mt-4"),
+            
+            # Portfolio Export Section
+            html.Div(id="portfolio-export", className="mt-4")
         ]
     
     # Reports content layout
@@ -817,14 +911,15 @@ def create_app(config_name='development'):
     
     # Callback to show/hide target return input
     @app.callback(
-        Output("target-return-container", "style"),
+        [Output("target-return-input", "style"),
+         Output("target-return-label", "style")],
         [Input("optimization-method", "value")]
     )
     def toggle_target_return_input(method):
         if method == 'target_return':
-            return {"display": "block"}
+            return {"display": "block"}, {"display": "block"}
         else:
-            return {"display": "none"}
+            return {"display": "none"}, {"display": "none"}
     
     # Helper functions for portfolio optimization display
     def create_portfolio_results_display(result, symbols, method):

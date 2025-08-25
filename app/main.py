@@ -10,6 +10,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import yfinance as yf
+import json
+import time
 
 # Import custom modules
 from data.market_data import MarketDataFetcher
@@ -1292,27 +1294,36 @@ def create_app(config_name='development'):
                             dbc.Button([
                                 html.I(className="fas fa-download me-2"),
                                 "Export as JSON"
-                            ], color="primary", className="w-100 mb-2")
+                            ], id="export-json-btn", color="primary", className="w-100 mb-2")
                         ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-file-csv me-2"),
                                 "Export as CSV"
-                            ], color="success", className="w-100 mb-2")
+                            ], id="export-csv-btn", color="success", className="w-100 mb-2")
                         ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-save me-2"),
                                 "Save to Portfolio Library"
-                            ], color="info", className="w-100 mb-2")
+                            ], id="save-portfolio-btn", color="info", className="w-100 mb-2")
                         ], width=3),
                         dbc.Col([
                             dbc.Button([
                                 html.I(className="fas fa-file-pdf me-2"),
                                 "Generate Report"
-                            ], color="warning", className="w-100 mb-2")
+                            ], id="generate-report-btn", color="warning", className="w-100 mb-2")
                         ], width=3)
-                    ])
+                    ]),
+                    # Hidden div to store portfolio data for export
+                    dcc.Store(id="portfolio-export-data", data={
+                        'result': result,
+                        'symbols': symbols,
+                        'method': method
+                    }),
+                    # Download components
+                    dcc.Download(id="download-json"),
+                    dcc.Download(id="download-csv")
                 ])
             ], className="portfolio-export-section")
         ]
@@ -1759,6 +1770,293 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"Error in sector performance callback: {str(e)}")
             return go.Figure()
+    
+    # Portfolio Export Callbacks
+    @app.callback(
+        [Output("export-json-btn", "children"),
+         Output("download-json", "data")],
+        Input("export-json-btn", "n_clicks"),
+        State("portfolio-export-data", "data"),
+        prevent_initial_call=True
+    )
+    def export_portfolio_json(n_clicks, portfolio_data):
+        """Export portfolio data as JSON"""
+        if not n_clicks or not portfolio_data:
+            raise dash.exceptions.PreventUpdate
+        
+        try:
+            # Create export data structure
+            export_data = {
+                'portfolio_info': {
+                    'symbols': portfolio_data['symbols'],
+                    'optimization_method': portfolio_data['method'],
+                    'export_date': datetime.now().isoformat(),
+                    'version': '1.0'
+                },
+                'optimization_results': portfolio_data['result']
+            }
+            
+            # Convert to JSON string
+            json_data = json.dumps(export_data, indent=2, default=str)
+            
+            # Create filename
+            filename = f"portfolio_{portfolio_data['method']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            return [
+                [html.I(className="fas fa-check me-2"), "Downloaded JSON"],
+                dict(content=json_data, filename=filename)
+            ]
+            
+        except Exception as e:
+            return [
+                [html.I(className="fas fa-exclamation-triangle me-2"), f"Error: {str(e)}"],
+                None
+            ]
+    
+    @app.callback(
+        [Output("export-csv-btn", "children"),
+         Output("download-csv", "data")],
+        Input("export-csv-btn", "n_clicks"),
+        State("portfolio-export-data", "data"),
+        prevent_initial_call=True
+    )
+    def export_portfolio_csv(n_clicks, portfolio_data):
+        """Export portfolio data as CSV"""
+        if not n_clicks or not portfolio_data:
+            raise dash.exceptions.PreventUpdate
+        
+        try:
+            result = portfolio_data['result']
+            symbols = portfolio_data['symbols']
+            
+            # Create CSV data
+            csv_data = []
+            
+            # Portfolio allocation
+            if 'allocation' in result:
+                csv_data.append(['Portfolio Allocation'])
+                csv_data.append(['Symbol', 'Weight (%)'])
+                for symbol, weight in zip(symbols, result['allocation']):
+                    csv_data.append([symbol, f"{weight:.2f}"])
+                csv_data.append([])
+            
+            # Portfolio metrics
+            if 'portfolio_metrics' in result:
+                csv_data.append(['Portfolio Metrics'])
+                metrics = result['portfolio_metrics']
+                csv_data.append(['Metric', 'Value'])
+                csv_data.append(['Annual Return', f"{metrics.get('annual_return', 0):.2%}"])
+                csv_data.append(['Annual Volatility', f"{metrics.get('annual_volatility', 0):.2%}"])
+                csv_data.append(['Sharpe Ratio', f"{metrics.get('sharpe_ratio', 0):.2f}"])
+                csv_data.append(['Maximum Drawdown', f"{metrics.get('max_drawdown', 0):.2%}"])
+                csv_data.append(['Value at Risk (95%)', f"{metrics.get('var_95', 0):.2%}"])
+                csv_data.append([])
+            
+            # Stock metrics
+            if 'stock_metrics' in result:
+                csv_data.append(['Individual Stock Metrics'])
+                csv_data.append(['Symbol', 'Annual Return', 'Annual Volatility', 'Sharpe Ratio', 'Max Drawdown'])
+                for symbol in symbols:
+                    if symbol in result['stock_metrics']:
+                        metrics = result['stock_metrics'][symbol]
+                        csv_data.append([
+                            symbol,
+                            f"{metrics.get('annual_return', 0):.2%}",
+                            f"{metrics.get('annual_volatility', 0):.2%}",
+                            f"{metrics.get('sharpe_ratio', 0):.2f}",
+                            f"{metrics.get('max_drawdown', 0):.2%}"
+                        ])
+            
+            # Convert to CSV string
+            csv_string = '\n'.join([','.join(row) for row in csv_data])
+            
+            # Create filename
+            filename = f"portfolio_{portfolio_data['method']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            
+            return [
+                [html.I(className="fas fa-check me-2"), "Downloaded CSV"],
+                dict(content=csv_string, filename=filename)
+            ]
+            
+        except Exception as e:
+            return [
+                [html.I(className="fas fa-exclamation-triangle me-2"), f"Error: {str(e)}"],
+                None
+            ]
+    
+    @app.callback(
+        Output("save-portfolio-btn", "children"),
+        Input("save-portfolio-btn", "n_clicks"),
+        State("portfolio-export-data", "data"),
+        prevent_initial_call=True
+    )
+    def save_portfolio_to_library(n_clicks, portfolio_data):
+        """Save portfolio to user's portfolio library"""
+        if not n_clicks or not portfolio_data:
+            raise dash.exceptions.PreventUpdate
+        
+        try:
+            # Create portfolio entry
+            portfolio_entry = {
+                'id': f"portfolio_{int(time.time())}",
+                'name': f"Portfolio_{portfolio_data['method'].replace('_', ' ').title()}_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                'symbols': portfolio_data['symbols'],
+                'method': portfolio_data['method'],
+                'created_date': datetime.now().isoformat(),
+                'data': portfolio_data['result']
+            }
+            
+            # Save to a JSON file in the data directory
+            import os
+            portfolio_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'portfolios')
+            os.makedirs(portfolio_dir, exist_ok=True)
+            
+            filename = f"portfolio_{portfolio_entry['id']}.json"
+            filepath = os.path.join(portfolio_dir, filename)
+            
+            with open(filepath, 'w') as f:
+                json.dump(portfolio_entry, f, indent=2, default=str)
+            
+            return [
+                html.I(className="fas fa-check me-2"),
+                "Saved to Library"
+            ]
+            
+        except Exception as e:
+            return [
+                html.I(className="fas fa-exclamation-triangle me-2"),
+                f"Error: {str(e)}"
+            ]
+    
+    @app.callback(
+    [Output("generate-report-btn", "children"),
+     Output("download-csv", "data", allow_duplicate=True)],  # Reuse CSV download for report
+    Input("generate-report-btn", "n_clicks"),
+    State("portfolio-export-data", "data"),
+    prevent_initial_call=True
+)
+    def generate_portfolio_report(n_clicks, portfolio_data):
+        """Generate a comprehensive portfolio report"""
+        if not n_clicks or not portfolio_data:
+            raise dash.exceptions.PreventUpdate
+        
+        try:
+            result = portfolio_data['result']
+            symbols = portfolio_data['symbols']
+            method = portfolio_data['method']
+            
+            # Create comprehensive report content
+            report_content = f"""
+PORTFOLIO OPTIMIZATION REPORT
+Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}
+{'='*60}
+
+EXECUTIVE SUMMARY:
+Optimization Method: {method.replace('_', ' ').title()}
+Portfolio Symbols: {', '.join(symbols)}
+Number of Assets: {len(symbols)}
+
+PORTFOLIO ALLOCATION:
+{'-'*30}"""
+            
+            if 'allocation' in result:
+                total_weight = 0
+                for symbol, weight in zip(symbols, result['allocation']):
+                    report_content += f"\n{symbol:<10} {weight:>8.2f}%"
+                    total_weight += weight
+                report_content += f"\n{'Total':<10} {total_weight:>8.2f}%"
+            
+            report_content += "\n\nPORTFOLIO METRICS:"
+            report_content += "\n" + "-"*30
+            
+            if 'portfolio_metrics' in result:
+                metrics = result['portfolio_metrics']
+                report_content += f"""
+Annual Return:        {metrics.get('annual_return', 0):>10.2%}
+Annual Volatility:    {metrics.get('annual_volatility', 0):>10.2%}
+Sharpe Ratio:         {metrics.get('sharpe_ratio', 0):>10.2f}
+Maximum Drawdown:     {metrics.get('max_drawdown', 0):>10.2%}
+Value at Risk (95%):  {metrics.get('var_95', 0):>10.2%}
+Beta:                 {metrics.get('beta', 0):>10.2f}
+Alpha:                {metrics.get('alpha', 0):>10.2%}
+Information Ratio:    {metrics.get('information_ratio', 0):>10.2f}
+Calmar Ratio:         {metrics.get('calmar_ratio', 0):>10.2f}"""
+            
+            report_content += "\n\nINDIVIDUAL STOCK METRICS:"
+            report_content += "\n" + "-"*50
+            
+            if 'stock_metrics' in result:
+                report_content += "\nSymbol    Annual Return  Volatility  Sharpe Ratio  Max Drawdown"
+                report_content += "\n" + "-"*60
+                for symbol in symbols:
+                    if symbol in result['stock_metrics']:
+                        metrics = result['stock_metrics'][symbol]
+                        report_content += f"\n{symbol:<9} {metrics.get('annual_return', 0):>12.2%} {metrics.get('annual_volatility', 0):>10.2%} {metrics.get('sharpe_ratio', 0):>12.2f} {metrics.get('max_drawdown', 0):>12.2%}"
+            
+            report_content += "\n\nRISK ANALYSIS:"
+            report_content += "\n" + "-"*20
+            
+            if 'portfolio_metrics' in result:
+                metrics = result['portfolio_metrics']
+                volatility = metrics.get('annual_volatility', 0)
+                if volatility > 0.25:
+                    risk_level = "HIGH"
+                elif volatility > 0.15:
+                    risk_level = "MEDIUM"
+                else:
+                    risk_level = "LOW"
+                
+                report_content += f"""
+Risk Level: {risk_level}
+Volatility Classification: {'High' if volatility > 0.25 else 'Medium' if volatility > 0.15 else 'Low'}
+Diversification: {'Good' if len(symbols) >= 10 else 'Moderate' if len(symbols) >= 5 else 'Limited'}
+"""
+            
+            report_content += "\n\nRECOMMENDATIONS:"
+            report_content += "\n" + "-"*20
+            
+            if 'portfolio_metrics' in result:
+                metrics = result['portfolio_metrics']
+                sharpe = metrics.get('sharpe_ratio', 0)
+                max_dd = metrics.get('max_drawdown', 0)
+                
+                if sharpe > 1.0:
+                    report_content += "\n✓ Strong risk-adjusted returns"
+                elif sharpe > 0.5:
+                    report_content += "\n✓ Moderate risk-adjusted returns"
+                else:
+                    report_content += "\n⚠ Consider risk management strategies"
+                
+                if max_dd < -0.15:
+                    report_content += "\n⚠ High maximum drawdown - consider defensive positions"
+                elif max_dd < -0.10:
+                    report_content += "\n⚠ Moderate drawdown risk"
+                else:
+                    report_content += "\n✓ Acceptable drawdown levels"
+                
+                if len(symbols) < 5:
+                    report_content += "\n⚠ Limited diversification - consider adding more positions"
+                elif len(symbols) < 10:
+                    report_content += "\n✓ Moderate diversification"
+                else:
+                    report_content += "\n✓ Good diversification"
+            
+            report_content += f"\n\nReport generated by Equity Research Dashboard"
+            report_content += f"\nFor investment advice, consult with a qualified financial advisor."
+            
+            # Create filename
+            filename = f"portfolio_report_{method}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            
+            return [
+                [html.I(className="fas fa-check me-2"), "Report Generated"],
+                dict(content=report_content, filename=filename)
+            ]
+            
+        except Exception as e:
+            return [
+                [html.I(className="fas fa-exclamation-triangle me-2"), f"Error: {str(e)}"],
+                None
+            ]
     
     return app
 

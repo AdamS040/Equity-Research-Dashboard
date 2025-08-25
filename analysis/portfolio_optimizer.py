@@ -535,8 +535,8 @@ class PortfolioOptimizer:
             'stock_metrics': stock_metrics,
             'optimization_method': method,
             'period': period,
-            'price_data': prices,
-            'returns_data': returns,
+            'price_data': prices.to_dict('records'),
+            'returns_data': returns.to_dict('records'),
             'efficient_frontier': efficient_frontier,
             'target_return': target_return if method == 'target_return' else None
         }

@@ -107,7 +107,9 @@ class PortfolioOptimizer:
             'sortino_ratio': sortino_ratio,
             'max_drawdown': max_drawdown,
             'var_5_percent': var_5,
-            'var_1_percent': var_1
+            'var_1_percent': var_1,
+            'portfolio_dates': returns.index.tolist(),
+            'portfolio_returns': cumulative_returns.tolist()
         }
     
     def optimize_max_sharpe(self, returns: pd.DataFrame, constraints: Optional[Dict] = None) -> np.array:
@@ -490,12 +492,19 @@ class PortfolioOptimizer:
                 stock_returns = returns[symbol]
                 annual_return = stock_returns.mean() * 252
                 annual_volatility = stock_returns.std() * np.sqrt(252)
+                sharpe_ratio = (annual_return - self.risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
+                
+                # Calculate cumulative returns for performance chart
+                cumulative_returns = (1 + stock_returns).cumprod()
                 
                 stock_metrics[symbol] = {
-                    'annual_return': annual_return,
-                    'annual_volatility': annual_volatility,
+                    'expected_return': annual_return,
+                    'volatility': annual_volatility,
+                    'sharpe_ratio': sharpe_ratio,
                     'current_price': current_prices.get(symbol, 0),
-                    'weight': optimal_weights[list(returns.columns).index(symbol)]
+                    'weight': optimal_weights[list(returns.columns).index(symbol)],
+                    'dates': returns.index.tolist(),
+                    'cumulative_returns': cumulative_returns.tolist()
                 }
         
         # Calculate efficient frontier for comparison

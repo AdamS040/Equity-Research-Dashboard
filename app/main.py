@@ -869,6 +869,11 @@ def create_app(config_name='development'):
             # Parse stock symbols
             symbols = [s.strip().upper() for s in stocks_input.split(',')]
             
+            # Validate symbols
+            if not symbols or len(symbols) < 2:
+                error_alert = dbc.Alert("Please enter at least 2 stock symbols separated by commas.", color="warning")
+                return [error_alert], [], [], {"display": "none"}
+            
             # Set default values
             period = period or '1y'
             risk_free_rate = risk_free_rate or 0.02
@@ -897,6 +902,13 @@ def create_app(config_name='development'):
                 error_alert = dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
                 return [error_alert], [], [], {"display": "none"}
             
+            # Validate result structure
+            required_keys = ['optimal_weights', 'portfolio_metrics', 'stock_metrics']
+            for key in required_keys:
+                if key not in result:
+                    error_alert = dbc.Alert(f"Invalid portfolio optimization result: missing {key}", color="danger")
+                    return [error_alert], [], [], {"display": "none"}
+            
             # Create results displays
             results_display = create_portfolio_results_display(result, symbols, method)
             comparison_display = create_portfolio_comparison_display(result, symbols, method)
@@ -906,6 +918,8 @@ def create_app(config_name='development'):
             
         except Exception as e:
             print(f"Error in portfolio optimization callback: {str(e)}")
+            import traceback
+            traceback.print_exc()
             error_alert = dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
             return [error_alert], [], [], {"display": "none"}
     
@@ -979,24 +993,30 @@ def create_app(config_name='development'):
         
         # Add individual stock performance
         for symbol in symbols:
-            if symbol in stock_metrics:
-                performance_fig.add_trace(go.Scatter(
-                    x=stock_metrics[symbol]['dates'],
-                    y=stock_metrics[symbol]['cumulative_returns'],
-                    mode='lines',
-                    name=symbol,
-                    line=dict(width=1)
-                ))
+            if symbol in stock_metrics and 'dates' in stock_metrics[symbol] and 'cumulative_returns' in stock_metrics[symbol]:
+                try:
+                    performance_fig.add_trace(go.Scatter(
+                        x=stock_metrics[symbol]['dates'],
+                        y=stock_metrics[symbol]['cumulative_returns'],
+                        mode='lines',
+                        name=symbol,
+                        line=dict(width=1)
+                    ))
+                except Exception as e:
+                    print(f"Error adding stock performance for {symbol}: {e}")
         
         # Add portfolio performance
         if 'portfolio_dates' in portfolio_metrics and 'portfolio_returns' in portfolio_metrics:
-            performance_fig.add_trace(go.Scatter(
-                x=portfolio_metrics['portfolio_dates'],
-                y=portfolio_metrics['portfolio_returns'],
-                mode='lines',
-                name='Portfolio',
-                line=dict(color='black', width=3)
-            ))
+            try:
+                performance_fig.add_trace(go.Scatter(
+                    x=portfolio_metrics['portfolio_dates'],
+                    y=portfolio_metrics['portfolio_returns'],
+                    mode='lines',
+                    name='Portfolio',
+                    line=dict(color='black', width=3)
+                ))
+            except Exception as e:
+                print(f"Error adding portfolio performance: {e}")
         
         performance_fig.update_layout(
             title="Performance Comparison",
@@ -1009,15 +1029,26 @@ def create_app(config_name='development'):
         # Create holdings table
         holdings_data = []
         for symbol in symbols:
-            weight = optimal_weights[symbol]
+            weight = optimal_weights.get(symbol, 0)
             if symbol in stock_metrics:
-                holdings_data.append({
-                    'Symbol': symbol,
-                    'Weight': f"{weight:.2%}",
-                    'Expected Return': f"{stock_metrics[symbol]['expected_return']:.2%}",
-                    'Volatility': f"{stock_metrics[symbol]['volatility']:.2%}",
-                    'Sharpe Ratio': f"{stock_metrics[symbol]['sharpe_ratio']:.2f}"
-                })
+                try:
+                    holdings_data.append({
+                        'Symbol': symbol,
+                        'Weight': f"{weight:.2%}",
+                        'Expected Return': f"{stock_metrics[symbol].get('expected_return', 0):.2%}",
+                        'Volatility': f"{stock_metrics[symbol].get('volatility', 0):.2%}",
+                        'Sharpe Ratio': f"{stock_metrics[symbol].get('sharpe_ratio', 0):.2f}"
+                    })
+                except Exception as e:
+                    print(f"Error creating holdings data for {symbol}: {e}")
+                    # Add fallback data
+                    holdings_data.append({
+                        'Symbol': symbol,
+                        'Weight': f"{weight:.2%}",
+                        'Expected Return': "N/A",
+                        'Volatility': "N/A",
+                        'Sharpe Ratio': "N/A"
+                    })
         
         holdings_table = dash_table.DataTable(
             data=holdings_data,

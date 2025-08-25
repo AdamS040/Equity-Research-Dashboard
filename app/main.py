@@ -381,26 +381,85 @@ def create_app(config_name='development'):
             raise dash.exceptions.PreventUpdate
         
         try:
-            # Use alternative symbols that are more reliable
-            # SPY instead of ^GSPC, QQQ instead of ^IXIC, etc.
-            indices = ['SPY', 'QQQ', 'VXX', '^TNX']  # More reliable symbols
-            symbol_names = ['S&P 500', 'NASDAQ', 'VIX', '10Y Treasury']
-            
-            # Try individual downloads with delays to avoid rate limits
-            results = []
+            # Configure yfinance with proper headers to avoid blocking
+            import yfinance as yf
             import time
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
             
-            # Track if we got any real data
+            # Configure session with retry strategy
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            
+            # Set proper headers to mimic a real browser
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
+            
+            # Use more reliable symbols and alternative symbols as fallbacks
+            symbol_configs = [
+                {
+                    'primary': '^GSPC',
+                    'fallback': 'SPY',
+                    'name': 'S&P 500',
+                    'format': 'currency'
+                },
+                {
+                    'primary': '^IXIC', 
+                    'fallback': 'QQQ',
+                    'name': 'NASDAQ',
+                    'format': 'currency'
+                },
+                {
+                    'primary': '^VIX',
+                    'fallback': 'VXX',
+                    'name': 'VIX',
+                    'format': 'decimal'
+                },
+                {
+                    'primary': '^TNX',
+                    'fallback': '^TYX',
+                    'name': '10Y Treasury',
+                    'format': 'percentage'
+                }
+            ]
+            
+            results = []
             got_real_data = False
             
-            for i, symbol in enumerate(indices):
+            for i, config in enumerate(symbol_configs):
                 try:
                     # Add delay between requests to avoid rate limiting
                     if i > 0:
-                        time.sleep(0.5)
+                        time.sleep(1)  # Increased delay
                     
+                    # Try primary symbol first
+                    symbol = config['primary']
                     ticker = yf.Ticker(symbol)
-                    hist = ticker.history(period='5d', interval='1d')
+                    ticker._session = session
+                    
+                    # Use a shorter period to reduce data load
+                    hist = ticker.history(period='2d', interval='1d', progress=False)
+                    
+                    if hist.empty or len(hist) < 2:
+                        # Try fallback symbol
+                        symbol = config['fallback']
+                        ticker = yf.Ticker(symbol)
+                        ticker._session = session
+                        hist = ticker.history(period='2d', interval='1d', progress=False)
                     
                     if not hist.empty and len(hist) >= 2:
                         current = hist['Close'].iloc[-1]
@@ -408,22 +467,24 @@ def create_app(config_name='development'):
                         change = current - previous
                         change_pct = (change / previous) * 100
                         
-                        # Format price string based on symbol
-                        if symbol == 'VXX':  # VIX proxy
-                            price_str = f"{current:.2f}"
-                        elif symbol == '^TNX':
+                        # Format price string based on config
+                        if config['format'] == 'currency':
+                            price_str = f"${current:.2f}"
+                        elif config['format'] == 'percentage':
                             price_str = f"{current:.2f}%"
                         else:
-                            price_str = f"${current:.2f}"
+                            price_str = f"{current:.2f}"
                         
                         change_str = f"{change:+.2f} ({change_pct:+.2f}%)"
                         results.extend([price_str, change_str])
                         got_real_data = True
+                        print(f"Successfully fetched data for {config['name']}: {price_str}")
                     else:
                         results.extend(["N/A", "N/A"])
+                        print(f"No data available for {config['name']}")
                         
                 except Exception as e:
-                    print(f"Error fetching {symbol}: {e}")
+                    print(f"Error fetching {config['name']}: {e}")
                     results.extend(["N/A", "N/A"])
             
             # If no real data was fetched, provide sample data for demonstration
@@ -440,12 +501,25 @@ def create_app(config_name='development'):
             # Create market performance chart with available data
             fig = go.Figure()
             
-            # Try to get chart data for SPY and QQQ, or create sample chart
+            # Try to get chart data for market indices
             chart_data_available = False
-            for symbol, name in zip(['SPY', 'QQQ'], ['S&P 500', 'NASDAQ']):
+            chart_symbols = [('^GSPC', 'S&P 500'), ('^IXIC', 'NASDAQ')]
+            
+            for symbol, name in chart_symbols:
                 try:
                     ticker = yf.Ticker(symbol)
-                    hist = ticker.history(period='5d', interval='1d')
+                    ticker._session = session
+                    hist = ticker.history(period='5d', interval='1d', progress=False)
+                    
+                    if hist.empty:
+                        # Try fallback
+                        if symbol == '^GSPC':
+                            ticker = yf.Ticker('SPY')
+                        elif symbol == '^IXIC':
+                            ticker = yf.Ticker('QQQ')
+                        ticker._session = session
+                        hist = ticker.history(period='5d', interval='1d', progress=False)
+                    
                     if not hist.empty:
                         fig.add_trace(go.Scatter(
                             x=hist.index,
@@ -455,8 +529,9 @@ def create_app(config_name='development'):
                             line=dict(width=2)
                         ))
                         chart_data_available = True
+                        print(f"Successfully created chart for {name}")
                 except Exception as e:
-                    print(f"Error creating chart for {symbol}: {e}")
+                    print(f"Error creating chart for {name}: {e}")
             
             # If no chart data available, create sample chart
             if not chart_data_available:
@@ -514,10 +589,44 @@ def create_app(config_name='development'):
             return []
         
         try:
-            # Fetch stock data
+            # Configure yfinance with proper headers to avoid blocking
+            import yfinance as yf
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
+            
+            # Configure session with retry strategy
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            
+            # Set proper headers to mimic a real browser
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
+            
+            # Fetch stock data with robust error handling
             stock = yf.Ticker(symbol.upper())
-            hist = stock.history(period=period)
+            stock._session = session
+            
+            hist = stock.history(period=period, progress=False)
             info = stock.info
+            
+            if hist.empty:
+                return [
+                    dbc.Alert(f"No data available for {symbol.upper()}. Please check the symbol and try again.", color="warning")
+                ]
             
             # Calculate basic metrics
             current_price = hist['Close'].iloc[-1]
@@ -627,12 +736,45 @@ def create_app(config_name='development'):
             return []
         
         try:
+            # Configure yfinance with proper headers to avoid blocking
+            import yfinance as yf
+            import requests
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
+            
+            # Configure session with retry strategy
+            session = requests.Session()
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            
+            # Set proper headers to mimic a real browser
+            session.headers.update({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            })
+            
             # Parse stock symbols
             symbols = [s.strip().upper() for s in stocks_input.split(',')]
             
-            # Fetch data
-            data = yf.download(symbols, period='1y')['Close']
-            returns = data.pct_change().dropna()
+            # Fetch data with robust error handling
+            try:
+                data = yf.download(symbols, period='1y', progress=False)['Close']
+                returns = data.pct_change().dropna()
+            except Exception as e:
+                print(f"Error downloading portfolio data: {e}")
+                return [
+                    dbc.Alert(f"Error fetching portfolio data: {str(e)}. Please check your symbols and try again.", color="danger")
+                ]
             
             # Calculate portfolio metrics based on method
             if method == 'equal_weight':

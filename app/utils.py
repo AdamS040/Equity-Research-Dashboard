@@ -461,3 +461,247 @@ cache_manager = CacheManager()
 calculator = FinancialCalculator()
 error_handler = ErrorHandler()
 config_manager = ConfigManager()
+
+
+def configure_yfinance_session():
+    """
+    Configure yfinance with proper headers and retry logic to avoid blocking
+    
+    Returns:
+        requests.Session: Configured session for yfinance
+    """
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+    
+    # Configure session with retry strategy
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    # Set proper headers to mimic a real browser
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+    })
+    
+    return session
+
+
+def get_yfinance_ticker(symbol: str, session=None):
+    """
+    Get yfinance ticker with proper session configuration
+    
+    Args:
+        symbol (str): Stock symbol
+        session (requests.Session, optional): Pre-configured session
+        
+    Returns:
+        yfinance.Ticker: Configured ticker object
+    """
+    import yfinance as yf
+    
+    if session is None:
+        session = configure_yfinance_session()
+    
+    ticker = yf.Ticker(symbol)
+    ticker._session = session
+    return ticker
+
+
+def fetch_stock_data_robust(symbol: str, period: str = '1y', interval: str = '1d', session=None):
+    """
+    Fetch stock data with robust error handling
+    
+    Args:
+        symbol (str): Stock symbol
+        period (str): Time period
+        interval (str): Data interval
+        session (requests.Session, optional): Pre-configured session
+        
+    Returns:
+        pd.DataFrame: Stock data or empty DataFrame if error
+    """
+    import yfinance as yf
+    import pandas as pd
+    
+    try:
+        ticker = get_yfinance_ticker(symbol, session)
+        data = ticker.history(period=period, interval=interval, progress=False)
+        
+        if not data.empty:
+            logger.info(f"Successfully fetched data for {symbol}")
+            return data
+        else:
+            logger.warning(f"No data found for {symbol}")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        logger.error(f"Error fetching data for {symbol}: {str(e)}")
+        return pd.DataFrame()
+
+
+def fetch_market_data_with_fallbacks(symbols: list, period: str = '2d', interval: str = '1d'):
+    """
+    Fetch market data with multiple fallback strategies
+    
+    Args:
+        symbols (list): List of symbols to fetch
+        period (str): Time period
+        interval (str): Data interval
+        
+    Returns:
+        dict: Dictionary with symbol as key and data as value
+    """
+    import yfinance as yf
+    import pandas as pd
+    import time
+    
+    results = {}
+    session = configure_yfinance_session()
+    
+    # Alternative symbols for common indices
+    symbol_alternatives = {
+        '^GSPC': ['SPY', 'SPX'],
+        '^IXIC': ['QQQ', 'NDX'],
+        '^VIX': ['VXX', 'VIXY'],
+        '^TNX': ['^TYX', 'TNX'],
+        '^DJI': ['DIA', 'DJI']
+    }
+    
+    for symbol in symbols:
+        try:
+            # Try primary symbol first
+            ticker = get_yfinance_ticker(symbol, session)
+            data = ticker.history(period=period, interval=interval, progress=False)
+            
+            # If primary fails, try alternatives
+            if data.empty and symbol in symbol_alternatives:
+                for alt_symbol in symbol_alternatives[symbol]:
+                    try:
+                        logger.info(f"Trying alternative symbol {alt_symbol} for {symbol}")
+                        ticker = get_yfinance_ticker(alt_symbol, session)
+                        data = ticker.history(period=period, interval=interval, progress=False)
+                        if not data.empty:
+                            logger.info(f"Successfully fetched data using alternative {alt_symbol}")
+                            break
+                    except Exception as e:
+                        logger.warning(f"Alternative symbol {alt_symbol} also failed: {e}")
+                        continue
+            
+            if not data.empty:
+                results[symbol] = data
+                logger.info(f"Successfully fetched data for {symbol}")
+            else:
+                logger.warning(f"No data available for {symbol}")
+                results[symbol] = pd.DataFrame()
+                
+        except Exception as e:
+            logger.error(f"Error fetching data for {symbol}: {e}")
+            results[symbol] = pd.DataFrame()
+        
+        # Add delay between requests
+        time.sleep(0.5)
+    
+    return results
+
+
+def get_market_overview_robust():
+    """
+    Get market overview with robust error handling and fallbacks
+    
+    Returns:
+        dict: Market overview data
+    """
+    import yfinance as yf
+    import pandas as pd
+    from datetime import datetime, timedelta
+    
+    # Define market symbols with alternatives
+    market_symbols = [
+        ('^GSPC', 'S&P 500', 'currency'),
+        ('^IXIC', 'NASDAQ', 'currency'),
+        ('^VIX', 'VIX', 'decimal'),
+        ('^TNX', '10Y Treasury', 'percentage')
+    ]
+    
+    session = configure_yfinance_session()
+    market_data = {}
+    
+    for symbol, name, format_type in market_symbols:
+        try:
+            # Try primary symbol
+            ticker = get_yfinance_ticker(symbol, session)
+            hist = ticker.history(period='2d', interval='1d', progress=False)
+            
+            # If primary fails, try alternatives
+            if hist.empty:
+                alternatives = {
+                    '^GSPC': 'SPY',
+                    '^IXIC': 'QQQ',
+                    '^VIX': 'VXX',
+                    '^TNX': '^TYX'
+                }
+                
+                if symbol in alternatives:
+                    alt_symbol = alternatives[symbol]
+                    logger.info(f"Trying alternative {alt_symbol} for {symbol}")
+                    ticker = get_yfinance_ticker(alt_symbol, session)
+                    hist = ticker.history(period='2d', interval='1d', progress=False)
+            
+            if not hist.empty and len(hist) >= 2:
+                current = hist['Close'].iloc[-1]
+                previous = hist['Close'].iloc[-2]
+                change = current - previous
+                change_pct = (change / previous) * 100
+                
+                # Format based on type
+                if format_type == 'currency':
+                    price_str = f"${current:.2f}"
+                elif format_type == 'percentage':
+                    price_str = f"{current:.2f}%"
+                else:
+                    price_str = f"{current:.2f}"
+                
+                change_str = f"{change:+.2f} ({change_pct:+.2f}%)"
+                
+                market_data[name] = {
+                    'price': price_str,
+                    'change': change_str,
+                    'current_value': current,
+                    'change_value': change,
+                    'change_pct': change_pct
+                }
+                
+                logger.info(f"Successfully fetched {name}: {price_str}")
+            else:
+                logger.warning(f"No data available for {name}")
+                market_data[name] = {
+                    'price': 'N/A',
+                    'change': 'N/A',
+                    'current_value': 0,
+                    'change_value': 0,
+                    'change_pct': 0
+                }
+                
+        except Exception as e:
+            logger.error(f"Error fetching {name}: {e}")
+            market_data[name] = {
+                'price': 'N/A',
+                'change': 'N/A',
+                'current_value': 0,
+                'change_value': 0,
+                'change_pct': 0
+            }
+    
+    return market_data

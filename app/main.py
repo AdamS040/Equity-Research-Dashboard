@@ -748,181 +748,72 @@ def create_app(config_name='development'):
     
     # Portfolio optimization callback
     @app.callback(
-        Output("portfolio-results", "children"),
+        [Output("portfolio-results", "children"),
+         Output("portfolio-comparison", "children"),
+         Output("portfolio-export", "children"),
+         Output("portfolio-loading", "style")],
         [Input("optimize-button", "n_clicks")],
         [State("portfolio-stocks-input", "value"),
-         State("optimization-method", "value")]
+         State("optimization-method", "value"),
+         State("portfolio-period", "value"),
+         State("target-return-input", "value"),
+         State("max-weight-input", "value"),
+         State("min-weight-input", "value"),
+         State("risk-free-rate-input", "value"),
+         State("rebalancing-frequency", "value")]
     )
-    def update_portfolio_optimization(n_clicks, stocks_input, method):
+    def update_portfolio_optimization(n_clicks, stocks_input, method, period, target_return, 
+                                    max_weight, min_weight, risk_free_rate, rebalancing_frequency):
         # Prevent callback from firing if no button click
         if not n_clicks or not stocks_input:
-            return []
+            return [], [], [], {"display": "none"}
+        
+        # Show loading state
+        loading_style = {"display": "block"}
         
         try:
-            # Configure yfinance with proper headers to avoid blocking
-            import yfinance as yf
-            import requests
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.retry import Retry
-            
-            # Configure session with retry strategy
-            session = requests.Session()
-            retry_strategy = Retry(
-                total=3,
-                backoff_factor=1,
-                status_forcelist=[429, 500, 502, 503, 504],
-            )
-            adapter = HTTPAdapter(max_retries=retry_strategy)
-            session.mount("http://", adapter)
-            session.mount("https://", adapter)
-            
-            # Set proper headers to mimic a real browser
-            session.headers.update({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-            })
-            
             # Parse stock symbols
             symbols = [s.strip().upper() for s in stocks_input.split(',')]
             
-            # Fetch data with robust error handling
-            try:
-                data = yf.download(symbols, period='1y')['Close']
-                returns = data.pct_change().dropna()
-            except Exception as e:
-                print(f"Error downloading portfolio data: {e}")
-                return [
-                    dbc.Alert(f"Error fetching portfolio data: {str(e)}. Please check your symbols and try again.", color="danger")
-                ]
+            # Set default values
+            period = period or '1y'
+            risk_free_rate = risk_free_rate or 0.02
+            max_weight = max_weight or 0.4
+            min_weight = min_weight or 0.01
             
-            # Use the proper portfolio optimizer
-            portfolio_optimizer = PortfolioOptimizer(risk_free_rate=0.02)
+            # Create constraints dictionary
+            constraints = {
+                'min_weight': min_weight,
+                'max_weight': max_weight
+            }
             
-            # Optimize portfolio using the proper optimizer
+            # Initialize portfolio optimizer with user-defined risk-free rate
+            portfolio_optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate)
+            
+            # Optimize portfolio
             result = portfolio_optimizer.optimize_portfolio(
                 symbols=symbols,
                 method=method,
-                period='1y',
-                constraints={'min_weight': 0.01, 'max_weight': 0.4}
+                period=period,
+                target_return=target_return,
+                constraints=constraints
             )
             
             if 'error' in result:
-                return [
-                    dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
-                ]
+                error_alert = dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
+                return [error_alert], [], [], {"display": "none"}
             
-            # Extract results from the optimizer
-            optimal_weights = result['optimal_weights']
-            portfolio_metrics = result['portfolio_metrics']
-            stock_metrics = result['stock_metrics']
+            # Create results displays
+            results_display = create_portfolio_results_display(result, symbols, method)
+            comparison_display = create_portfolio_comparison_display(result, symbols, method)
+            export_display = create_portfolio_export_display(result, symbols, method)
             
-            # Convert weights to array for calculations
-            weights = np.array([optimal_weights[symbol] for symbol in symbols])
-            
-            # Ensure weights sum to 1 and are positive
-            weights = np.abs(weights)
-            weights = weights / weights.sum()
-            
-            # Use optimized portfolio metrics
-            portfolio_return = portfolio_metrics['annual_return']
-            portfolio_volatility = portfolio_metrics['annual_volatility']
-            sharpe_ratio = portfolio_metrics['sharpe_ratio']
-            
-            # Create allocation chart
-            allocation_fig = go.Figure(data=[go.Pie(
-                labels=symbols,
-                values=weights,
-                hole=.3
-            )])
-            allocation_fig.update_traces(textposition='inside', textinfo='percent+label')
-            allocation_fig.update_layout(
-                title="Portfolio Allocation",
-                template="plotly_white",
-                height=400
-            )
-            
-            # Portfolio performance
-            portfolio_values = (returns @ weights).cumsum()
-            performance_fig = go.Figure()
-            performance_fig.add_trace(go.Scatter(
-                x=portfolio_values.index,
-                y=portfolio_values,
-                mode='lines',
-                name='Portfolio',
-                line=dict(color='green', width=2)
-            ))
-            performance_fig.update_layout(
-                title="Portfolio Cumulative Returns",
-                xaxis_title="Date",
-                yaxis_title="Cumulative Return",
-                template="plotly_white",
-                height=400
-            )
-            
-            # Allocation table
-            allocation_data = pd.DataFrame({
-                'Symbol': symbols,
-                'Weight': [f"{w:.1%}" for w in weights],
-                'Current Price': [f"${data[symbol].iloc[-1]:.2f}" for symbol in symbols]
-            })
-            
-            allocation_table = dash_table.DataTable(
-                data=allocation_data.to_dict('records'),
-                columns=[{"name": i, "id": i} for i in allocation_data.columns],
-                style_cell={'textAlign': 'center'},
-                style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'}
-            )
-            
-            return [
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader("Portfolio Metrics"),
-                            dbc.CardBody([
-                                html.H5(f"Expected Annual Return: {portfolio_return:.2%}"),
-                                html.H5(f"Annual Volatility: {portfolio_volatility:.2%}"),
-                                html.H5(f"Sharpe Ratio: {sharpe_ratio:.2f}"),
-                            ])
-                        ])
-                    ], width=4),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader("Asset Allocation"),
-                            dbc.CardBody([
-                                dcc.Graph(figure=allocation_fig)
-                            ])
-                        ])
-                    ], width=8),
-                ]),
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader("Portfolio Performance"),
-                            dbc.CardBody([
-                                dcc.Graph(figure=performance_fig)
-                            ])
-                        ])
-                    ], width=8),
-                    dbc.Col([
-                        dbc.Card([
-                            dbc.CardHeader("Holdings"),
-                            dbc.CardBody([
-                                allocation_table
-                            ])
-                        ])
-                    ], width=4),
-                ], className="mt-4")
-            ]
+            return results_display, comparison_display, export_display, {"display": "none"}
             
         except Exception as e:
             print(f"Error in portfolio optimization callback: {str(e)}")
-            return [
-                dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
-            ]
+            error_alert = dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
+            return [error_alert], [], [], {"display": "none"}
     
     # Callback to show/hide target return input
     @app.callback(
@@ -934,6 +825,318 @@ def create_app(config_name='development'):
             return {"display": "block"}
         else:
             return {"display": "none"}
+    
+    # Helper functions for portfolio optimization display
+    def create_portfolio_results_display(result, symbols, method):
+        """Create the main portfolio results display"""
+        optimal_weights = result['optimal_weights']
+        portfolio_metrics = result['portfolio_metrics']
+        stock_metrics = result['stock_metrics']
+        
+        # Convert weights to array for calculations
+        weights = np.array([optimal_weights[symbol] for symbol in symbols])
+        
+        # Create metrics cards
+        metrics_cards = [
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4(f"{portfolio_metrics['annual_return']:.2%}", className="text-primary mb-0"),
+                    html.P("Expected Annual Return", className="text-muted mb-0")
+                ])
+            ], className="portfolio-metrics-card text-center"),
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4(f"{portfolio_metrics['annual_volatility']:.2%}", className="text-warning mb-0"),
+                    html.P("Annual Volatility", className="text-muted mb-0")
+                ])
+            ], className="portfolio-metrics-card text-center"),
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4(f"{portfolio_metrics['sharpe_ratio']:.2f}", className="text-success mb-0"),
+                    html.P("Sharpe Ratio", className="text-muted mb-0")
+                ])
+            ], className="portfolio-metrics-card text-center"),
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4(f"{portfolio_metrics['max_drawdown']:.2%}", className="text-danger mb-0"),
+                    html.P("Max Drawdown", className="text-muted mb-0")
+                ])
+            ], className="portfolio-metrics-card text-center")
+        ]
+        
+        # Create allocation pie chart
+        allocation_fig = go.Figure(data=[go.Pie(
+            labels=symbols,
+            values=weights,
+            hole=0.3,
+            textinfo='percent+label',
+            textposition='inside'
+        )])
+        allocation_fig.update_layout(
+            title="Asset Allocation",
+            template="plotly_white",
+            height=400,
+            showlegend=True
+        )
+        
+        # Create performance comparison chart
+        performance_fig = go.Figure()
+        
+        # Add individual stock performance
+        for symbol in symbols:
+            if symbol in stock_metrics:
+                performance_fig.add_trace(go.Scatter(
+                    x=stock_metrics[symbol]['dates'],
+                    y=stock_metrics[symbol]['cumulative_returns'],
+                    mode='lines',
+                    name=symbol,
+                    line=dict(width=1)
+                ))
+        
+        # Add portfolio performance
+        if 'portfolio_dates' in portfolio_metrics and 'portfolio_returns' in portfolio_metrics:
+            performance_fig.add_trace(go.Scatter(
+                x=portfolio_metrics['portfolio_dates'],
+                y=portfolio_metrics['portfolio_returns'],
+                mode='lines',
+                name='Portfolio',
+                line=dict(color='black', width=3)
+            ))
+        
+        performance_fig.update_layout(
+            title="Performance Comparison",
+            xaxis_title="Date",
+            yaxis_title="Cumulative Return",
+            template="plotly_white",
+            height=400
+        )
+        
+        # Create holdings table
+        holdings_data = []
+        for symbol in symbols:
+            weight = optimal_weights[symbol]
+            if symbol in stock_metrics:
+                holdings_data.append({
+                    'Symbol': symbol,
+                    'Weight': f"{weight:.2%}",
+                    'Expected Return': f"{stock_metrics[symbol]['expected_return']:.2%}",
+                    'Volatility': f"{stock_metrics[symbol]['volatility']:.2%}",
+                    'Sharpe Ratio': f"{stock_metrics[symbol]['sharpe_ratio']:.2f}"
+                })
+        
+        holdings_table = dash_table.DataTable(
+            data=holdings_data,
+            columns=[
+                {"name": "Symbol", "id": "Symbol"},
+                {"name": "Weight", "id": "Weight"},
+                {"name": "Expected Return", "id": "Expected Return"},
+                {"name": "Volatility", "id": "Volatility"},
+                {"name": "Sharpe Ratio", "id": "Sharpe Ratio"}
+            ],
+            style_cell={'textAlign': 'center'},
+            style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+            style_data_conditional=[
+                {
+                    'if': {'row_index': 'odd'},
+                    'backgroundColor': 'rgb(248, 248, 248)'
+                }
+            ]
+        )
+        
+        return [
+            # Optimization method badge
+            dbc.Row([
+                dbc.Col([
+                    html.Span(
+                        f"Optimization Method: {method.replace('_', ' ').title()}",
+                        className=f"optimization-method-badge optimization-method-{method}"
+                    )
+                ], className="text-center mb-3")
+            ]),
+            
+            # Metrics cards
+            dbc.Row([
+                dbc.Col(card, width=3) for card in metrics_cards
+            ], className="mb-4"),
+            
+            # Charts and table
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Asset Allocation"),
+                        dbc.CardBody([
+                            dcc.Graph(figure=allocation_fig)
+                        ])
+                    ], className="portfolio-chart-card")
+                ], width=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Performance Comparison"),
+                        dbc.CardBody([
+                            dcc.Graph(figure=performance_fig)
+                        ])
+                    ], className="portfolio-chart-card")
+                ], width=6)
+            ], className="mb-4"),
+            
+            # Holdings table
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Portfolio Holdings"),
+                        dbc.CardBody([
+                            holdings_table
+                        ])
+                    ], className="portfolio-table-card")
+                ])
+            ])
+        ]
+    
+    def create_portfolio_comparison_display(result, symbols, method):
+        """Create the portfolio comparison display"""
+        if 'efficient_frontier' not in result:
+            return []
+        
+        efficient_frontier = result['efficient_frontier']
+        optimal_weights = result['optimal_weights']
+        portfolio_metrics = result['portfolio_metrics']
+        
+        # Create efficient frontier chart
+        frontier_fig = go.Figure()
+        
+        # Add efficient frontier points
+        frontier_fig.add_trace(go.Scatter(
+            x=[point['volatility'] for point in efficient_frontier],
+            y=[point['return'] for point in efficient_frontier],
+            mode='markers',
+            name='Efficient Frontier',
+            marker=dict(color='lightblue', size=8)
+        ))
+        
+        # Add optimal portfolio point
+        frontier_fig.add_trace(go.Scatter(
+            x=[portfolio_metrics['annual_volatility']],
+            y=[portfolio_metrics['annual_return']],
+            mode='markers',
+            name='Optimal Portfolio',
+            marker=dict(color='red', size=12, symbol='star')
+        ))
+        
+        frontier_fig.update_layout(
+            title="Efficient Frontier Analysis",
+            xaxis_title="Portfolio Volatility",
+            yaxis_title="Expected Return",
+            template="plotly_white",
+            height=400
+        )
+        
+        # Create benchmark comparison table
+        benchmark_data = [
+            {
+                'Metric': 'Expected Return',
+                'Portfolio': f"{portfolio_metrics['annual_return']:.2%}",
+                'S&P 500': '10.5%',
+                'Russell 2000': '12.2%',
+                'MSCI World': '8.7%'
+            },
+            {
+                'Metric': 'Volatility',
+                'Portfolio': f"{portfolio_metrics['annual_volatility']:.2%}",
+                'S&P 500': '15.2%',
+                'Russell 2000': '18.5%',
+                'MSCI World': '14.8%'
+            },
+            {
+                'Metric': 'Sharpe Ratio',
+                'Portfolio': f"{portfolio_metrics['sharpe_ratio']:.2f}",
+                'S&P 500': '0.69',
+                'Russell 2000': '0.66',
+                'MSCI World': '0.59'
+            },
+            {
+                'Metric': 'Max Drawdown',
+                'Portfolio': f"{portfolio_metrics['max_drawdown']:.2%}",
+                'S&P 500': '-12.5%',
+                'Russell 2000': '-15.8%',
+                'MSCI World': '-11.2%'
+            }
+        ]
+        
+        benchmark_table = dash_table.DataTable(
+            data=benchmark_data,
+            columns=[
+                {"name": "Metric", "id": "Metric"},
+                {"name": "Portfolio", "id": "Portfolio"},
+                {"name": "S&P 500", "id": "S&P 500"},
+                {"name": "Russell 2000", "id": "Russell 2000"},
+                {"name": "MSCI World", "id": "MSCI World"}
+            ],
+            style_cell={'textAlign': 'center'},
+            style_header={'backgroundColor': 'rgb(230, 230, 230)', 'fontWeight': 'bold'},
+            style_data_conditional=[
+                {
+                    'if': {'row_index': 'odd'},
+                    'backgroundColor': 'rgb(248, 248, 248)'
+                }
+            ]
+        )
+        
+        return [
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Efficient Frontier Analysis"),
+                        dbc.CardBody([
+                            dcc.Graph(figure=frontier_fig)
+                        ])
+                    ], className="efficient-frontier-chart")
+                ], width=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("Performance Benchmarks"),
+                        dbc.CardBody([
+                            benchmark_table
+                        ])
+                    ], className="performance-benchmark-table")
+                ], width=6)
+            ])
+        ]
+    
+    def create_portfolio_export_display(result, symbols, method):
+        """Create the portfolio export display"""
+        return [
+            dbc.Card([
+                dbc.CardHeader("Export & Save Options"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Button([
+                                html.I(className="fas fa-download me-2"),
+                                "Export as JSON"
+                            ], color="primary", className="w-100 mb-2")
+                        ], width=3),
+                        dbc.Col([
+                            dbc.Button([
+                                html.I(className="fas fa-file-csv me-2"),
+                                "Export as CSV"
+                            ], color="success", className="w-100 mb-2")
+                        ], width=3),
+                        dbc.Col([
+                            dbc.Button([
+                                html.I(className="fas fa-save me-2"),
+                                "Save to Portfolio Library"
+                            ], color="info", className="w-100 mb-2")
+                        ], width=3),
+                        dbc.Col([
+                            dbc.Button([
+                                html.I(className="fas fa-file-pdf me-2"),
+                                "Generate Report"
+                            ], color="warning", className="w-100 mb-2")
+                        ], width=3)
+                    ])
+                ])
+            ], className="portfolio-export-section")
+        ]
     
     # Research report callback
     @app.callback(

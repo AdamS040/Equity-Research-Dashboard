@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Dash](https://img.shields.io/badge/Dash-2.0+-orange.svg)](https://dash.plotly.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/Status-Development-yellow.svg)]()
 
 > **Professional-grade equity research platform** featuring real-time market data, advanced financial modeling, portfolio optimization, and comprehensive risk analysis. Built with modern Python technologies and designed for institutional-quality financial analysis.
 

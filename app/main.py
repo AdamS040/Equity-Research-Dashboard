@@ -51,6 +51,9 @@ def create_app(config_name='development'):
     auth_manager = AuthManager(app.server)
     init_auth_routes(app.server, auth_manager)
     
+    # Store auth_manager in app config for access in callbacks
+    app.server.config['auth_manager'] = auth_manager
+    
     # Initialize data services
     market_data = MarketDataFetcher()
     analyzer = FinancialAnalyzer()
@@ -1304,8 +1307,8 @@ def create_app(config_name='development'):
                         ], width=3),
                         dbc.Col([
                             dbc.Button([
-                                html.I(className="fas fa-save me-2"),
-                                "Save to Portfolio Library"
+                                html.I(className="fas fa-user me-2"),
+                                "Save to Profile"
                             ], id="save-portfolio-btn", color="info", className="w-100 mb-2")
                         ], width=3),
                         dbc.Col([
@@ -2363,37 +2366,43 @@ def create_app(config_name='development'):
         State("portfolio-export-data", "data"),
         prevent_initial_call=True
     )
-    def save_portfolio_to_library(n_clicks, portfolio_data):
-        """Save portfolio to user's portfolio library"""
+    def save_portfolio_to_profile(n_clicks, portfolio_data):
+        """Save portfolio to user's profile"""
         if not n_clicks or not portfolio_data:
             raise dash.exceptions.PreventUpdate
         
         try:
-            # Create portfolio entry
+            # Check if user is authenticated
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return [
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    "Please login to save portfolio"
+                ]
+            
+            # Create portfolio name
+            portfolio_name = f"Portfolio_{portfolio_data['method'].replace('_', ' ').title()}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+            
+            # Prepare portfolio data for database storage
             portfolio_entry = {
-                'id': f"portfolio_{int(time.time())}",
-                'name': f"Portfolio_{portfolio_data['method'].replace('_', ' ').title()}_{datetime.now().strftime('%Y%m%d_%H%M')}",
                 'symbols': portfolio_data['symbols'],
                 'method': portfolio_data['method'],
                 'created_date': datetime.now().isoformat(),
                 'data': portfolio_data['result']
             }
             
-            # Save to a JSON file in the data directory
-            import os
-            portfolio_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'portfolios')
-            os.makedirs(portfolio_dir, exist_ok=True)
-            
-            filename = f"portfolio_{portfolio_entry['id']}.json"
-            filepath = os.path.join(portfolio_dir, filename)
-            
-            with open(filepath, 'w') as f:
-                json.dump(portfolio_entry, f, indent=2, default=str)
-            
-            return [
-                html.I(className="fas fa-check me-2"),
-                "Saved to Library"
-            ]
+            # Save to user's profile using the auth manager
+            auth_manager = app.server.config.get('auth_manager')
+            if auth_manager and auth_manager.save_user_portfolio(current_user.id, portfolio_name, portfolio_entry):
+                return [
+                    html.I(className="fas fa-check me-2"),
+                    "Saved to Profile"
+                ]
+            else:
+                return [
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    "Failed to save portfolio"
+                ]
             
         except Exception as e:
             return [

@@ -305,6 +305,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for the financial technology community**
 
 *This project showcases professional-grade skills in financial modeling, data science, and full-stack development - perfect for demonstrating expertise to potential employers in investment banking, asset management, and quantitative finance.*

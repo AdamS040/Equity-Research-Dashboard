@@ -280,7 +280,6 @@ This project effectively demonstrates:
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ### Development Workflow
 1. Fork the repository

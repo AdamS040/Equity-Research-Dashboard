@@ -9,6 +9,83 @@ from typing import Dict, List, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
 
+
+def safe_financial_lookup(df: pd.DataFrame, label: str, column_index: int = 0) -> float:
+    """
+    Safe accessor for financial statement data with fallback logic for missing labels.
+    
+    This function handles common variations in yfinance data labels and returns np.nan
+    for missing data instead of raising KeyError or IndexError.
+    
+    Args:
+        df (pd.DataFrame): Financial statement DataFrame (income statement, balance sheet, etc.)
+        label (str): The financial metric label to look up
+        column_index (int): Column index to extract (default 0 for most recent period)
+        
+    Returns:
+        float: The financial metric value or np.nan if not found
+        
+    Examples:
+        >>> revenue = safe_financial_lookup(income_stmt, 'Total Revenue')
+        >>> assets = safe_financial_lookup(balance_sheet, 'Total Assets')
+    """
+    if df is None or df.empty:
+        return np.nan
+    
+    # Direct lookup first
+    if label in df.index:
+        try:
+            return float(df.loc[label].iloc[column_index])
+        except (IndexError, KeyError, ValueError):
+            return np.nan
+    
+    # Case-insensitive lookup
+    label_lower = label.lower()
+    for idx in df.index:
+        if idx.lower() == label_lower:
+            try:
+                return float(df.loc[idx].iloc[column_index])
+            except (IndexError, KeyError, ValueError):
+                return np.nan
+    
+    # Common label variations mapping
+    label_variations = {
+        'Total Revenue': ['Revenue', 'Total Revenue', 'Sales', 'Net Sales', 'Operating Revenue'],
+        'Net Income': ['Net Income', 'Net Earnings', 'Profit After Tax', 'Net Profit', 'Earnings'],
+        'Gross Profit': ['Gross Profit', 'Gross Income', 'Gross Earnings'],
+        'Operating Income': ['Operating Income', 'Operating Profit', 'Operating Earnings', 'EBIT'],
+        'EBIT': ['EBIT', 'Operating Income', 'Operating Profit', 'Earnings Before Interest and Tax'],
+        'Total Assets': ['Total Assets', 'Assets', 'Total Asset'],
+        'Total Current Assets': ['Current Assets', 'Total Current Assets', 'Current Asset'],
+        'Total Current Liabilities': ['Current Liabilities', 'Total Current Liabilities', 'Current Liability'],
+        'Total Stockholder Equity': ['Stockholders Equity', 'Total Stockholder Equity', 'Shareholders Equity', 'Total Equity', 'Equity'],
+        'Cash': ['Cash', 'Cash and Cash Equivalents', 'Cash & Cash Equivalents'],
+        'Inventory': ['Inventory', 'Inventories', 'Total Inventory'],
+        'Net Receivables': ['Accounts Receivable', 'Net Receivables', 'Receivables', 'Trade Receivables'],
+        'Accounts Payable': ['Accounts Payable', 'Payables', 'Trade Payables'],
+        'Total Debt': ['Total Debt', 'Debt', 'Total Liabilities', 'Long Term Debt']
+    }
+    
+    # Check variations for the requested label
+    if label in label_variations:
+        for variation in label_variations[label]:
+            if variation in df.index:
+                try:
+                    return float(df.loc[variation].iloc[column_index])
+                except (IndexError, KeyError, ValueError):
+                    continue
+    
+    # Partial match lookup (case-insensitive)
+    for idx in df.index:
+        if label_lower in idx.lower() or idx.lower() in label_lower:
+            try:
+                return float(df.loc[idx].iloc[column_index])
+            except (IndexError, KeyError, ValueError):
+                continue
+    
+    return np.nan
+
+
 class FinancialAnalyzer:
     """
     Comprehensive financial metrics analyzer
@@ -62,25 +139,29 @@ class FinancialAnalyzer:
                 return {}
             
             # Get most recent year data
-            revenue = income_stmt.loc['Total Revenue'].iloc[0]
-            net_income = income_stmt.loc['Net Income'].iloc[0]
-            total_assets = balance_sheet.loc['Total Assets'].iloc[0]
-            total_equity = balance_sheet.loc['Total Stockholder Equity'].iloc[0]
+            revenue = safe_financial_lookup(income_stmt, 'Total Revenue')
+            net_income = safe_financial_lookup(income_stmt, 'Net Income')
+            total_assets = safe_financial_lookup(balance_sheet, 'Total Assets')
+            total_equity = safe_financial_lookup(balance_sheet, 'Total Stockholder Equity')
             
             # Calculate ratios
-            gross_profit = income_stmt.loc['Gross Profit'].iloc[0] if 'Gross Profit' in income_stmt.index else revenue * 0.6
-            operating_income = income_stmt.loc['Operating Income'].iloc[0] if 'Operating Income' in income_stmt.index else net_income * 1.2
+            gross_profit = safe_financial_lookup(income_stmt, 'Gross Profit')
+            if np.isnan(gross_profit):
+                gross_profit = revenue * 0.6 if not np.isnan(revenue) else np.nan
+            operating_income = safe_financial_lookup(income_stmt, 'Operating Income')
+            if np.isnan(operating_income):
+                operating_income = net_income * 1.2 if not np.isnan(net_income) else np.nan
             
             ratios = {
-                'gross_margin': gross_profit / revenue if revenue > 0 else 0,
-                'operating_margin': operating_income / revenue if revenue > 0 else 0,
-                'net_margin': net_income / revenue if revenue > 0 else 0,
-                'roa': net_income / total_assets if total_assets > 0 else 0,
-                'roe': net_income / total_equity if total_equity > 0 else 0,
-                'roic': net_income / (total_assets - balance_sheet.loc['Total Current Liabilities'].iloc[0]) if total_assets > 0 else 0
+                'gross_margin': gross_profit / revenue if not np.isnan(revenue) and revenue > 0 and not np.isnan(gross_profit) else np.nan,
+                'operating_margin': operating_income / revenue if not np.isnan(revenue) and revenue > 0 and not np.isnan(operating_income) else np.nan,
+                'net_margin': net_income / revenue if not np.isnan(revenue) and revenue > 0 and not np.isnan(net_income) else np.nan,
+                'roa': net_income / total_assets if not np.isnan(total_assets) and total_assets > 0 and not np.isnan(net_income) else np.nan,
+                'roe': net_income / total_equity if not np.isnan(total_equity) and total_equity > 0 and not np.isnan(net_income) else np.nan,
+                'roic': net_income / (total_assets - safe_financial_lookup(balance_sheet, 'Total Current Liabilities')) if not np.isnan(total_assets) and total_assets > 0 and not np.isnan(net_income) else np.nan
             }
             
-            return {k: round(v * 100, 2) for k, v in ratios.items()}
+            return {k: round(v * 100, 2) if not np.isnan(v) else np.nan for k, v in ratios.items()}
             
         except Exception as e:
             print(f"Error calculating profitability ratios for {symbol}: {e}")
@@ -104,19 +185,23 @@ class FinancialAnalyzer:
                 return {}
             
             # Get most recent year data
-            current_assets = balance_sheet.loc['Total Current Assets'].iloc[0]
-            current_liabilities = balance_sheet.loc['Total Current Liabilities'].iloc[0]
-            cash = balance_sheet.loc['Cash'].iloc[0] if 'Cash' in balance_sheet.index else current_assets * 0.1
-            inventory = balance_sheet.loc['Inventory'].iloc[0] if 'Inventory' in balance_sheet.index else 0
+            current_assets = safe_financial_lookup(balance_sheet, 'Total Current Assets')
+            current_liabilities = safe_financial_lookup(balance_sheet, 'Total Current Liabilities')
+            cash = safe_financial_lookup(balance_sheet, 'Cash')
+            if np.isnan(cash):
+                cash = current_assets * 0.1 if not np.isnan(current_assets) else np.nan
+            inventory = safe_financial_lookup(balance_sheet, 'Inventory')
+            if np.isnan(inventory):
+                inventory = 0
             
             ratios = {
-                'current_ratio': current_assets / current_liabilities if current_liabilities > 0 else 0,
-                'quick_ratio': (current_assets - inventory) / current_liabilities if current_liabilities > 0 else 0,
-                'cash_ratio': cash / current_liabilities if current_liabilities > 0 else 0,
-                'working_capital': current_assets - current_liabilities
+                'current_ratio': current_assets / current_liabilities if not np.isnan(current_liabilities) and current_liabilities > 0 and not np.isnan(current_assets) else np.nan,
+                'quick_ratio': (current_assets - inventory) / current_liabilities if not np.isnan(current_liabilities) and current_liabilities > 0 and not np.isnan(current_assets) and not np.isnan(inventory) else np.nan,
+                'cash_ratio': cash / current_liabilities if not np.isnan(current_liabilities) and current_liabilities > 0 and not np.isnan(cash) else np.nan,
+                'working_capital': current_assets - current_liabilities if not np.isnan(current_assets) and not np.isnan(current_liabilities) else np.nan
             }
             
-            return {k: round(v, 2) for k, v in ratios.items()}
+            return {k: round(v, 2) if not np.isnan(v) else np.nan for k, v in ratios.items()}
             
         except Exception as e:
             print(f"Error calculating liquidity ratios for {symbol}: {e}")
@@ -142,19 +227,22 @@ class FinancialAnalyzer:
                 return {}
             
             # Get most recent year data
-            total_assets = balance_sheet.loc['Total Assets'].iloc[0]
+            total_assets = safe_financial_lookup(balance_sheet, 'Total Assets')
             total_debt = info.get('totalDebt', 0)
-            total_equity = balance_sheet.loc['Total Stockholder Equity'].iloc[0]
-            ebit = income_stmt.loc['EBIT'].iloc[0] if 'EBIT' in income_stmt.index else income_stmt.loc['Net Income'].iloc[0] * 1.3
+            total_equity = safe_financial_lookup(balance_sheet, 'Total Stockholder Equity')
+            ebit = safe_financial_lookup(income_stmt, 'EBIT')
+            if np.isnan(ebit):
+                net_income = safe_financial_lookup(income_stmt, 'Net Income')
+                ebit = net_income * 1.3 if not np.isnan(net_income) else np.nan
             
             ratios = {
-                'debt_to_equity': total_debt / total_equity if total_equity > 0 else 0,
-                'debt_to_assets': total_debt / total_assets if total_assets > 0 else 0,
-                'equity_ratio': total_equity / total_assets if total_assets > 0 else 0,
-                'interest_coverage': ebit / info.get('interestExpense', 1) if info.get('interestExpense', 0) > 0 else 999
+                'debt_to_equity': total_debt / total_equity if not np.isnan(total_equity) and total_equity > 0 else np.nan,
+                'debt_to_assets': total_debt / total_assets if not np.isnan(total_assets) and total_assets > 0 else np.nan,
+                'equity_ratio': total_equity / total_assets if not np.isnan(total_assets) and total_assets > 0 and not np.isnan(total_equity) else np.nan,
+                'interest_coverage': ebit / info.get('interestExpense', 1) if info.get('interestExpense', 0) > 0 and not np.isnan(ebit) else np.nan
             }
             
-            return {k: round(v, 2) for k, v in ratios.items()}
+            return {k: round(v, 2) if not np.isnan(v) else np.nan for k, v in ratios.items()}
             
         except Exception as e:
             print(f"Error calculating solvency ratios for {symbol}: {e}")
@@ -179,24 +267,32 @@ class FinancialAnalyzer:
                 return {}
             
             # Get most recent year data
-            revenue = income_stmt.loc['Total Revenue'].iloc[0]
-            total_assets = balance_sheet.loc['Total Assets'].iloc[0]
-            inventory = balance_sheet.loc['Inventory'].iloc[0] if 'Inventory' in balance_sheet.index else 0
-            accounts_receivable = balance_sheet.loc['Net Receivables'].iloc[0] if 'Net Receivables' in balance_sheet.index else 0
-            accounts_payable = balance_sheet.loc['Accounts Payable'].iloc[0] if 'Accounts Payable' in balance_sheet.index else 0
+            revenue = safe_financial_lookup(income_stmt, 'Total Revenue')
+            total_assets = safe_financial_lookup(balance_sheet, 'Total Assets')
+            inventory = safe_financial_lookup(balance_sheet, 'Inventory')
+            if np.isnan(inventory):
+                inventory = 0
+            accounts_receivable = safe_financial_lookup(balance_sheet, 'Net Receivables')
+            if np.isnan(accounts_receivable):
+                accounts_receivable = 0
+            accounts_payable = safe_financial_lookup(balance_sheet, 'Accounts Payable')
+            if np.isnan(accounts_payable):
+                accounts_payable = 0
             
             # Calculate COGS if not available
-            gross_profit = income_stmt.loc['Gross Profit'].iloc[0] if 'Gross Profit' in income_stmt.index else revenue * 0.6
+            gross_profit = safe_financial_lookup(income_stmt, 'Gross Profit')
+            if np.isnan(gross_profit):
+                gross_profit = revenue * 0.6 if not np.isnan(revenue) else np.nan
             cogs = revenue - gross_profit
             
             ratios = {
-                'asset_turnover': revenue / total_assets if total_assets > 0 else 0,
-                'inventory_turnover': cogs / inventory if inventory > 0 else 0,
-                'receivables_turnover': revenue / accounts_receivable if accounts_receivable > 0 else 0,
-                'payables_turnover': cogs / accounts_payable if accounts_payable > 0 else 0
+                'asset_turnover': revenue / total_assets if not np.isnan(total_assets) and total_assets > 0 and not np.isnan(revenue) else np.nan,
+                'inventory_turnover': cogs / inventory if not np.isnan(inventory) and inventory > 0 and not np.isnan(cogs) else np.nan,
+                'receivables_turnover': revenue / accounts_receivable if not np.isnan(accounts_receivable) and accounts_receivable > 0 and not np.isnan(revenue) else np.nan,
+                'payables_turnover': cogs / accounts_payable if not np.isnan(accounts_payable) and accounts_payable > 0 and not np.isnan(cogs) else np.nan
             }
             
-            return {k: round(v, 2) for k, v in ratios.items()}
+            return {k: round(v, 2) if not np.isnan(v) else np.nan for k, v in ratios.items()}
             
         except Exception as e:
             print(f"Error calculating efficiency ratios for {symbol}: {e}")
@@ -225,21 +321,21 @@ class FinancialAnalyzer:
             current_price = info.get('currentPrice', 0)
             market_cap = info.get('marketCap', 0)
             shares_outstanding = info.get('sharesOutstanding', 0)
-            net_income = income_stmt.loc['Net Income'].iloc[0]
-            total_equity = balance_sheet.loc['Total Stockholder Equity'].iloc[0]
-            total_assets = balance_sheet.loc['Total Assets'].iloc[0]
+            net_income = safe_financial_lookup(income_stmt, 'Net Income')
+            total_equity = safe_financial_lookup(balance_sheet, 'Total Stockholder Equity')
+            total_assets = safe_financial_lookup(balance_sheet, 'Total Assets')
             
             # Calculate ratios
             ratios = {
-                'pe_ratio': current_price / (net_income / shares_outstanding) if net_income > 0 and shares_outstanding > 0 else 0,
-                'pb_ratio': current_price / (total_equity / shares_outstanding) if total_equity > 0 and shares_outstanding > 0 else 0,
-                'ps_ratio': current_price / (income_stmt.loc['Total Revenue'].iloc[0] / shares_outstanding) if shares_outstanding > 0 else 0,
-                'ev_ebitda': (market_cap + info.get('totalDebt', 0) - info.get('totalCash', 0)) / info.get('ebitda', net_income * 1.5) if info.get('ebitda', 0) > 0 else 0,
-                'dividend_yield': info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0,
-                'payout_ratio': info.get('payoutRatio', 0) * 100 if info.get('payoutRatio') else 0
+                'pe_ratio': current_price / (net_income / shares_outstanding) if not np.isnan(net_income) and net_income > 0 and shares_outstanding > 0 else np.nan,
+                'pb_ratio': current_price / (total_equity / shares_outstanding) if not np.isnan(total_equity) and total_equity > 0 and shares_outstanding > 0 else np.nan,
+                'ps_ratio': current_price / (safe_financial_lookup(income_stmt, 'Total Revenue') / shares_outstanding) if shares_outstanding > 0 and not np.isnan(safe_financial_lookup(income_stmt, 'Total Revenue')) else np.nan,
+                'ev_ebitda': (market_cap + info.get('totalDebt', 0) - info.get('totalCash', 0)) / info.get('ebitda', net_income * 1.5) if info.get('ebitda', 0) > 0 and not np.isnan(net_income) else np.nan,
+                'dividend_yield': info.get('dividendYield', 0) * 100 if info.get('dividendYield') else np.nan,
+                'payout_ratio': info.get('payoutRatio', 0) * 100 if info.get('payoutRatio') else np.nan
             }
             
-            return {k: round(v, 2) for k, v in ratios.items()}
+            return {k: round(v, 2) if not np.isnan(v) else np.nan for k, v in ratios.items()}
             
         except Exception as e:
             print(f"Error calculating valuation ratios for {symbol}: {e}")
@@ -266,13 +362,19 @@ class FinancialAnalyzer:
             
             # Get historical data for growth calculation
             if len(income_stmt.columns) >= 2:
-                current_revenue = income_stmt.loc['Total Revenue'].iloc[0]
-                previous_revenue = income_stmt.loc['Total Revenue'].iloc[1]
-                revenue_growth = ((current_revenue - previous_revenue) / previous_revenue) * 100
+                current_revenue = safe_financial_lookup(income_stmt, 'Total Revenue', 0)
+                previous_revenue = safe_financial_lookup(income_stmt, 'Total Revenue', 1)
+                if not np.isnan(current_revenue) and not np.isnan(previous_revenue) and previous_revenue > 0:
+                    revenue_growth = ((current_revenue - previous_revenue) / previous_revenue) * 100
+                else:
+                    revenue_growth = np.nan
                 
-                current_net_income = income_stmt.loc['Net Income'].iloc[0]
-                previous_net_income = income_stmt.loc['Net Income'].iloc[1]
-                earnings_growth = ((current_net_income - previous_net_income) / previous_net_income) * 100 if previous_net_income > 0 else 0
+                current_net_income = safe_financial_lookup(income_stmt, 'Net Income', 0)
+                previous_net_income = safe_financial_lookup(income_stmt, 'Net Income', 1)
+                if not np.isnan(current_net_income) and not np.isnan(previous_net_income) and previous_net_income > 0:
+                    earnings_growth = ((current_net_income - previous_net_income) / previous_net_income) * 100
+                else:
+                    earnings_growth = np.nan
             else:
                 revenue_growth = info.get('revenueGrowth', 0) * 100
                 earnings_growth = 0
@@ -284,7 +386,7 @@ class FinancialAnalyzer:
                 'earnings_growth_5y': info.get('earningsGrowth', 0) * 100 if info.get('earningsGrowth') else 0
             }
             
-            return {k: round(v, 2) for k, v in metrics.items()}
+            return {k: round(v, 2) if not np.isnan(v) else np.nan for k, v in metrics.items()}
             
         except Exception as e:
             print(f"Error calculating growth metrics for {symbol}: {e}")

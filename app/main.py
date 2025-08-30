@@ -527,10 +527,10 @@ def create_app(config_name='development'):
         
         # Portfolio Allocation
         story.append(Paragraph("PORTFOLIO ALLOCATION", heading_style))
-        if 'allocation' in result:
+        if 'optimal_weights' in result:
             allocation_data = [['Symbol', 'Weight (%)']]
             total_weight = 0
-            for symbol, weight in zip(symbols, result['allocation']):
+            for symbol, weight in result['optimal_weights'].items():
                 allocation_data.append([symbol, f"{weight:.2f}%"])
                 total_weight += weight
             allocation_data.append(['Total', f"{total_weight:.2f}%"])
@@ -560,9 +560,9 @@ def create_app(config_name='development'):
                 ['Annual Volatility', f"{metrics.get('annual_volatility', 0):.2%}"],
                 ['Sharpe Ratio', f"{metrics.get('sharpe_ratio', 0):.2f}"],
                 ['Maximum Drawdown', f"{metrics.get('max_drawdown', 0):.2%}"],
-                ['Value at Risk (95%)', f"{metrics.get('var_95', 0):.2%}"],
-                ['Beta', f"{metrics.get('beta', 0):.2f}"],
-                ['Alpha', f"{metrics.get('alpha', 0):.2%}"],
+                ['Value at Risk (5%)', f"{metrics.get('var_5_percent', 0):.2%}"],
+                ['Value at Risk (1%)', f"{metrics.get('var_1_percent', 0):.2%}"],
+                ['Sortino Ratio', f"{metrics.get('sortino_ratio', 0):.2f}"],
                 ['Information Ratio', f"{metrics.get('information_ratio', 0):.2f}"],
                 ['Calmar Ratio', f"{metrics.get('calmar_ratio', 0):.2f}"]
             ]
@@ -583,16 +583,16 @@ def create_app(config_name='development'):
         # Individual Stock Metrics
         story.append(Paragraph("INDIVIDUAL STOCK METRICS", heading_style))
         if 'stock_metrics' in result:
-            stock_data = [['Symbol', 'Annual Return', 'Volatility', 'Sharpe Ratio', 'Max Drawdown']]
+            stock_data = [['Symbol', 'Expected Return', 'Volatility', 'Sharpe Ratio', 'Current Price']]
             for symbol in symbols:
                 if symbol in result['stock_metrics']:
                     metrics = result['stock_metrics'][symbol]
                     stock_data.append([
                         symbol,
-                        f"{metrics.get('annual_return', 0):.2%}",
-                        f"{metrics.get('annual_volatility', 0):.2%}",
+                        f"{metrics.get('expected_return', 0):.2%}",
+                        f"{metrics.get('volatility', 0):.2%}",
                         f"{metrics.get('sharpe_ratio', 0):.2f}",
-                        f"{metrics.get('max_drawdown', 0):.2%}"
+                        f"${metrics.get('current_price', 0):.2f}"
                     ])
             
             stock_table = Table(stock_data, colWidths=[1*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch])
@@ -606,6 +606,43 @@ def create_app(config_name='development'):
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ]))
             story.append(stock_table)
+        story.append(Spacer(1, 20))
+        
+        # Current Market Data
+        story.append(Paragraph("CURRENT MARKET DATA", heading_style))
+        if 'stock_metrics' in result:
+            market_data = [['Symbol', 'Current Price', 'Weight', 'Market Value']]
+            total_value = 0
+            for symbol in symbols:
+                if symbol in result['stock_metrics']:
+                    metrics = result['stock_metrics'][symbol]
+                    current_price = metrics.get('current_price', 0)
+                    weight = metrics.get('weight', 0)
+                    # Assume $100,000 portfolio for market value calculation
+                    portfolio_value = 100000
+                    market_value = portfolio_value * weight
+                    total_value += market_value
+                    market_data.append([
+                        symbol,
+                        f"${current_price:.2f}",
+                        f"{weight:.2%}",
+                        f"${market_value:.2f}"
+                    ])
+            market_data.append(['Total', '', '100%', f"${total_value:.2f}"])
+            
+            market_table = Table(market_data, colWidths=[1.5*inch, 1.2*inch, 1.2*inch, 1.5*inch])
+            market_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(market_table)
         story.append(Spacer(1, 20))
         
         # Risk Analysis
@@ -644,27 +681,48 @@ def create_app(config_name='development'):
             metrics = result['portfolio_metrics']
             sharpe = metrics.get('sharpe_ratio', 0)
             max_dd = metrics.get('max_drawdown', 0)
+            volatility = metrics.get('annual_volatility', 0)
+            sortino = metrics.get('sortino_ratio', 0)
             
+            # Risk-adjusted return analysis
             if sharpe > 1.0:
-                recommendations.append("✓ Strong risk-adjusted returns")
+                recommendations.append("✓ Strong risk-adjusted returns (Sharpe Ratio > 1.0)")
             elif sharpe > 0.5:
-                recommendations.append("✓ Moderate risk-adjusted returns")
+                recommendations.append("✓ Moderate risk-adjusted returns (Sharpe Ratio > 0.5)")
             else:
-                recommendations.append("⚠ Consider risk management strategies")
+                recommendations.append("⚠ Consider risk management strategies to improve Sharpe ratio")
             
+            # Drawdown analysis
             if max_dd < -0.15:
                 recommendations.append("⚠ High maximum drawdown - consider defensive positions")
             elif max_dd < -0.10:
-                recommendations.append("⚠ Moderate drawdown risk")
+                recommendations.append("⚠ Moderate drawdown risk - monitor closely")
             else:
                 recommendations.append("✓ Acceptable drawdown levels")
             
+            # Diversification analysis
             if len(symbols) < 5:
                 recommendations.append("⚠ Limited diversification - consider adding more positions")
             elif len(symbols) < 10:
-                recommendations.append("✓ Moderate diversification")
+                recommendations.append("✓ Moderate diversification achieved")
             else:
-                recommendations.append("✓ Good diversification")
+                recommendations.append("✓ Good diversification with adequate position count")
+            
+            # Volatility analysis
+            if volatility > 0.25:
+                recommendations.append("⚠ High volatility portfolio - suitable for aggressive investors")
+            elif volatility > 0.15:
+                recommendations.append("✓ Moderate volatility - balanced risk profile")
+            else:
+                recommendations.append("✓ Low volatility - conservative portfolio")
+            
+            # Sortino ratio analysis
+            if sortino > 1.0:
+                recommendations.append("✓ Excellent downside risk management")
+            elif sortino > 0.5:
+                recommendations.append("✓ Good downside risk management")
+            else:
+                recommendations.append("⚠ Consider strategies to reduce downside volatility")
         
         for rec in recommendations:
             story.append(Paragraph(rec, normal_style))
@@ -2523,57 +2581,128 @@ def create_app(config_name='development'):
         try:
             result = portfolio_data['result']
             symbols = portfolio_data['symbols']
+            method = portfolio_data['method']
             
-            # Create CSV data
+            # Create CSV data with proper headers
             csv_data = []
             
-            # Portfolio allocation
-            if 'allocation' in result:
-                csv_data.append(['Portfolio Allocation'])
-                csv_data.append(['Symbol', 'Weight (%)'])
-                for symbol, weight in zip(symbols, result['allocation']):
-                    csv_data.append([symbol, f"{weight:.2f}"])
-                csv_data.append([])
+            # Portfolio Summary Header
+            csv_data.append(['Portfolio Analysis Report'])
+            csv_data.append([f'Optimization Method: {method.replace("_", " ").title()}'])
+            csv_data.append([f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'])
+            csv_data.append([])
             
-            # Portfolio metrics
+            # Portfolio Allocation Section
+            csv_data.append(['PORTFOLIO ALLOCATION'])
+            csv_data.append(['Symbol', 'Weight (%)', 'Current Price ($)', 'Expected Return (%)', 'Volatility (%)', 'Sharpe Ratio'])
+            
+            if 'optimal_weights' in result and 'stock_metrics' in result:
+                for symbol in symbols:
+                    weight = result['optimal_weights'].get(symbol, 0) * 100
+                    stock_metrics = result['stock_metrics'].get(symbol, {})
+                    current_price = stock_metrics.get('current_price', 0)
+                    expected_return = stock_metrics.get('expected_return', 0) * 100
+                    volatility = stock_metrics.get('volatility', 0) * 100
+                    sharpe_ratio = stock_metrics.get('sharpe_ratio', 0)
+                    
+                    csv_data.append([
+                        symbol,
+                        f"{weight:.2f}",
+                        f"{current_price:.2f}",
+                        f"{expected_return:.2f}",
+                        f"{volatility:.2f}",
+                        f"{sharpe_ratio:.3f}"
+                    ])
+            else:
+                # Fallback if data is missing
+                csv_data.append(['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'])
+            csv_data.append([])
+            
+            # Portfolio Metrics Section
+            csv_data.append(['PORTFOLIO METRICS'])
             if 'portfolio_metrics' in result:
-                csv_data.append(['Portfolio Metrics'])
                 metrics = result['portfolio_metrics']
                 csv_data.append(['Metric', 'Value'])
-                csv_data.append(['Annual Return', f"{metrics.get('annual_return', 0):.2%}"])
-                csv_data.append(['Annual Volatility', f"{metrics.get('annual_volatility', 0):.2%}"])
-                csv_data.append(['Sharpe Ratio', f"{metrics.get('sharpe_ratio', 0):.2f}"])
-                csv_data.append(['Maximum Drawdown', f"{metrics.get('max_drawdown', 0):.2%}"])
-                csv_data.append(['Value at Risk (95%)', f"{metrics.get('var_95', 0):.2%}"])
-                csv_data.append([])
+                csv_data.append(['Annual Return (%)', f"{metrics.get('annual_return', 0) * 100:.2f}"])
+                csv_data.append(['Annual Volatility (%)', f"{metrics.get('annual_volatility', 0) * 100:.2f}"])
+                csv_data.append(['Sharpe Ratio', f"{metrics.get('sharpe_ratio', 0):.3f}"])
+                csv_data.append(['Maximum Drawdown (%)', f"{metrics.get('max_drawdown', 0) * 100:.2f}"])
+                csv_data.append(['Value at Risk (5%) (%)', f"{metrics.get('var_5_percent', 0) * 100:.2f}"])
+                csv_data.append(['Value at Risk (1%) (%)', f"{metrics.get('var_1_percent', 0) * 100:.2f}"])
+                csv_data.append(['Sortino Ratio', f"{metrics.get('sortino_ratio', 0):.3f}"])
+            else:
+                # Fallback if portfolio metrics are missing
+                csv_data.append(['Metric', 'Value'])
+                csv_data.append(['Annual Return (%)', 'N/A'])
+                csv_data.append(['Annual Volatility (%)', 'N/A'])
+                csv_data.append(['Sharpe Ratio', 'N/A'])
+                csv_data.append(['Maximum Drawdown (%)', 'N/A'])
+                csv_data.append(['Value at Risk (5%) (%)', 'N/A'])
+                csv_data.append(['Value at Risk (1%) (%)', 'N/A'])
+                csv_data.append(['Sortino Ratio', 'N/A'])
+            csv_data.append([])
             
-            # Stock metrics
+            # Individual Stock Performance Section
+            csv_data.append(['INDIVIDUAL STOCK PERFORMANCE'])
+            csv_data.append(['Symbol', 'Current Price ($)', 'Expected Return (%)', 'Volatility (%)', 'Sharpe Ratio', 'Weight (%)'])
+            
             if 'stock_metrics' in result:
-                csv_data.append(['Individual Stock Metrics'])
-                csv_data.append(['Symbol', 'Annual Return', 'Annual Volatility', 'Sharpe Ratio', 'Max Drawdown'])
                 for symbol in symbols:
                     if symbol in result['stock_metrics']:
                         metrics = result['stock_metrics'][symbol]
+                        current_price = metrics.get('current_price', 0)
+                        expected_return = metrics.get('expected_return', 0) * 100
+                        volatility = metrics.get('volatility', 0) * 100
+                        sharpe_ratio = metrics.get('sharpe_ratio', 0)
+                        weight = result['optimal_weights'].get(symbol, 0) * 100
+                        
                         csv_data.append([
                             symbol,
-                            f"{metrics.get('annual_return', 0):.2%}",
-                            f"{metrics.get('annual_volatility', 0):.2%}",
-                            f"{metrics.get('sharpe_ratio', 0):.2f}",
-                            f"{metrics.get('max_drawdown', 0):.2%}"
+                            f"{current_price:.2f}",
+                            f"{expected_return:.2f}",
+                            f"{volatility:.2f}",
+                            f"{sharpe_ratio:.3f}",
+                            f"{weight:.2f}"
                         ])
+            else:
+                # Fallback if data is missing
+                csv_data.append(['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'])
+            csv_data.append([])
             
-            # Convert to CSV string
-            csv_string = '\n'.join([','.join(row) for row in csv_data])
+            # Risk Analysis Section
+            csv_data.append(['RISK ANALYSIS'])
+            if 'portfolio_metrics' in result:
+                metrics = result['portfolio_metrics']
+                csv_data.append(['Risk Metric', 'Value', 'Description'])
+                csv_data.append(['Downside Deviation (%)', f"{metrics.get('downside_deviation', 0) * 100:.2f}", 'Downside risk measure'])
+            else:
+                csv_data.append(['Risk Metric', 'Value', 'Description'])
+                csv_data.append(['Downside Deviation (%)', 'N/A', 'Downside risk measure'])
             
-            # Create filename
-            filename = f"portfolio_{portfolio_data['method']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            # Convert to CSV string with proper escaping
+            import csv
+            import io
+            
+            output = io.StringIO()
+            writer = csv.writer(output)
+            for row in csv_data:
+                writer.writerow(row)
+            
+            csv_string = output.getvalue()
+            output.close()
+            
+            # Create filename with method and timestamp
+            filename = f"Portfolio_Analysis_{method.replace('_', '_').title()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             
             return [
-                [html.I(className="fas fa-check me-2"), "Downloaded CSV"],
+                [html.I(className="fas fa-check me-2"), "CSV Downloaded"],
                 dict(content=csv_string, filename=filename)
             ]
             
         except Exception as e:
+            print(f"Error in CSV export: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return [
                 [html.I(className="fas fa-exclamation-triangle me-2"), f"Error: {str(e)}"],
                 None

@@ -100,6 +100,13 @@ class PortfolioOptimizer:
         downside_deviation = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else 0
         sortino_ratio = (annual_return - self.risk_free_rate) / downside_deviation if downside_deviation > 0 else 0
         
+        # Information ratio (assuming benchmark is risk-free rate)
+        information_ratio = (annual_return - self.risk_free_rate) / annual_volatility if annual_volatility > 0 else 0
+        
+        # Calmar ratio (annual return / maximum drawdown)
+        max_drawdown_abs = abs(max_drawdown)
+        calmar_ratio = annual_return / max_drawdown_abs if max_drawdown_abs > 0 else 0
+        
         return {
             'annual_return': annual_return,
             'annual_volatility': annual_volatility,
@@ -108,6 +115,8 @@ class PortfolioOptimizer:
             'max_drawdown': max_drawdown,
             'var_5_percent': var_5,
             'var_1_percent': var_1,
+            'information_ratio': information_ratio,
+            'calmar_ratio': calmar_ratio,
             'portfolio_dates': returns.index.tolist(),
             'portfolio_returns': cumulative_returns.tolist()
         }

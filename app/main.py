@@ -1210,12 +1210,117 @@ def create_app(config_name='development'):
             print(f"Portfolio optimization completed successfully")
             print(f"Portfolio metrics: {result['portfolio_metrics']}")
             
+            # Check for validation warnings and create notifications
+            notifications = []
+            if 'validation_info' in result:
+                validation_info = result['validation_info']
+                
+                # Check for single asset portfolio
+                if validation_info.get('is_single_asset', False):
+                    notifications.append(
+                        dbc.Alert([
+                            html.I(className="bi bi-info-circle me-2"),
+                            "Single asset portfolio detected. Optimization returned equal weight of 100%."
+                        ], color="info", dismissable=True, className="portfolio-alert")
+                    )
+                
+                # Check for singular covariance matrix
+                if validation_info.get('is_singular_matrix', False):
+                    notifications.append(
+                        dbc.Alert([
+                            html.I(className="bi bi-exclamation-triangle me-2"),
+                            "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets."
+                        ], color="warning", dismissable=True, className="portfolio-alert")
+                    )
+                
+                # Check for NaN handling
+                if validation_info.get('has_nans', False):
+                    nan_handling = validation_info.get('nan_handling', 'unknown')
+                    if nan_handling == 'forward_fill':
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-info-circle me-2"),
+                                f"Missing data detected. Used forward-fill method to handle {validation_info.get('nan_count', 0)} NaN values."
+                            ], color="info", dismissable=True, className="portfolio-alert")
+                        )
+                    elif nan_handling == 'dropna':
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-exclamation-triangle me-2"),
+                                f"Missing data detected. Dropped {validation_info.get('original_shape', [0, 0])[0] - validation_info.get('cleaned_shape', [0, 0])[0]} rows with NaN values."
+                            ], color="warning", dismissable=True, className="portfolio-alert")
+                        )
+                
+                # Check for other validation warnings
+                if validation_info.get('warnings'):
+                    for warning in validation_info['warnings']:
+                        if 'fallback' in warning.lower() or 'equal weights' in warning.lower():
+                            notifications.append(
+                                dbc.Alert([
+                                    html.I(className="bi bi-exclamation-triangle me-2"),
+                                    f"Optimization fallback: {warning}"
+                                ], color="warning", dismissable=True, className="portfolio-alert")
+                            )
+                        else:
+                            notifications.append(
+                                dbc.Alert([
+                                    html.I(className="bi bi-info-circle me-2"),
+                                    warning
+                                ], color="info", dismissable=True, className="portfolio-alert")
+                            )
+            
+            # Additional checks for optimization fallbacks based on actual results
+            if 'optimal_weights' in result:
+                optimal_weights = result['optimal_weights']
+                weights_list = list(optimal_weights.values())
+                
+                # Check if all weights are equal (indicating fallback to equal weights)
+                if len(weights_list) > 1 and all(abs(w - weights_list[0]) < 1e-6 for w in weights_list):
+                    # This suggests equal weights were used as a fallback
+                    notifications.append(
+                        dbc.Alert([
+                            html.I(className="bi bi-exclamation-triangle me-2"),
+                            html.Span([
+                                "Portfolio optimization defaulted to equal weights (",
+                                html.Strong(f"{100/len(weights_list):.1f}% each"),
+                                "). This may indicate optimization constraints or data issues."
+                            ])
+                        ], color="warning", dismissable=True, className="portfolio-alert")
+                    )
+                
+                # Check if any weight is exactly 1.0 (single asset case)
+                if len(weights_list) == 1 and abs(weights_list[0] - 1.0) < 1e-6:
+                    notifications.append(
+                        dbc.Alert([
+                            html.I(className="bi bi-info-circle me-2"),
+                            "Single asset portfolio detected. Weight set to 100%."
+                        ], color="info", dismissable=True, className="portfolio-alert")
+                    )
+                
+                # Check for extreme weight concentrations
+                max_weight = max(weights_list)
+                if max_weight > 0.8:  # More than 80% in one asset
+                    notifications.append(
+                        dbc.Alert([
+                            html.I(className="bi bi-exclamation-triangle me-2"),
+                            html.Span([
+                                "High concentration detected: ",
+                                html.Strong(f"{max_weight:.1%}"),
+                                " allocated to a single asset. Consider diversification."
+                            ])
+                        ], color="warning", dismissable=True, className="portfolio-alert")
+                    )
+            
             # Create results displays with timestamp for unique keys
             import time
             timestamp = int(time.time())
             results_display = create_portfolio_results_display(result, symbols, method, timestamp)
             comparison_display = create_portfolio_comparison_display(result, symbols, method)
             export_display = create_portfolio_export_display(result, symbols, method)
+            
+            # Combine notifications with results
+            if notifications:
+                results_display = notifications + results_display
             
             return results_display, comparison_display, export_display, {"display": "none"}
             

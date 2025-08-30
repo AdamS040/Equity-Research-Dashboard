@@ -97,6 +97,52 @@ body {
     margin: 0;
 }
 
+/* Optimization Notifications */
+.optimization-notification {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+    animation: slideIn 0.3s ease-out;
+}
+
+.optimization-notification.info {
+    border-left-color: #17a2b8;
+    background-color: #d1ecf1;
+}
+
+.optimization-notification.warning {
+    border-left-color: #ffc107;
+    background-color: #fff3cd;
+}
+
+.optimization-notification.danger {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Portfolio Optimization Alerts */
+.portfolio-alert {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.portfolio-alert .alert-icon {
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+
 /* Price Changes */
 .text-success {
     color: #28a745 !important;

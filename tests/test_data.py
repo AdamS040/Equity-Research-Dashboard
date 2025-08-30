@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
+import requests
 
 # Import modules to test
 from data.data_fetcher import DataFetcher
@@ -97,6 +98,316 @@ class TestDataFetcher(unittest.TestCase):
             self.assertIn('AAPL', result.columns)
             self.assertIn('MSFT', result.columns)
             self.assertIn('GOOGL', result.columns)
+    
+    def test_retry_decorator_success_on_first_attempt(self):
+        """Test that retry decorator works correctly on first attempt"""
+        from data.data_fetcher import retry_on_failure
+        
+        @retry_on_failure(max_retries=3, backoff_factor=1.0)
+        def mock_function():
+            return "success"
+        
+        result = mock_function()
+        self.assertEqual(result, "success")
+    
+    def test_retry_decorator_success_after_retries(self):
+        """Test that retry decorator succeeds after some failures"""
+        from data.data_fetcher import retry_on_failure
+        call_count = 0
+        
+        @retry_on_failure(max_retries=3, backoff_factor=0.1)
+        def mock_function():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ValueError("Temporary failure")
+            return "success"
+        
+        result = mock_function()
+        self.assertEqual(result, "success")
+        self.assertEqual(call_count, 3)
+    
+    def test_retry_decorator_max_retries_exceeded(self):
+        """Test that retry decorator respects maximum retry limit"""
+        from data.data_fetcher import retry_on_failure
+        call_count = 0
+        
+        @retry_on_failure(max_retries=2, backoff_factor=0.1)
+        def mock_function():
+            nonlocal call_count
+            call_count += 1
+            raise ValueError("Persistent failure")
+        
+        with self.assertRaises(ValueError):
+            mock_function()
+        
+        self.assertEqual(call_count, 3)  # Initial attempt + 2 retries
+    
+    def test_retry_decorator_rate_limit_handling(self):
+        """Test that retry decorator handles rate limit errors with longer delays"""
+        from data.data_fetcher import retry_on_failure
+        import time
+        call_count = 0
+        
+        @retry_on_failure(max_retries=2, backoff_factor=0.1)
+        def mock_function():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # Simulate rate limit error
+                error = requests.exceptions.HTTPError()
+                error.response = Mock()
+                error.response.status_code = 429
+                raise error
+            return "success"
+        
+        start_time = time.time()
+        result = mock_function()
+        end_time = time.time()
+        
+        self.assertEqual(result, "success")
+        self.assertEqual(call_count, 2)
+        # Should have taken longer due to rate limit delay
+        self.assertGreater(end_time - start_time, 0.1)
+    
+    def test_cache_functionality(self):
+        """Test that caching works correctly"""
+        # Mock the _fetch_with_yfinance method
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            # First call should fetch from API
+            result1 = self.fetcher.get_stock_data('AAPL', period='1d')
+            self.assertEqual(len(result1), 3)
+            mock_fetch.assert_called_once()
+            
+            # Reset mock call count
+            mock_fetch.reset_mock()
+            
+            # Second call should use cache
+            result2 = self.fetcher.get_stock_data('AAPL', period='1d')
+            self.assertEqual(len(result2), 3)
+            mock_fetch.assert_not_called()  # Should not be called due to cache
+    
+    def test_cache_expiration(self):
+        """Test that cache expires correctly"""
+        import time
+        # Set short cache duration
+        self.fetcher.set_cache_duration(1)  # 1 second
+        
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            # First call
+            result1 = self.fetcher.get_stock_data('AAPL', period='1d')
+            self.assertEqual(len(result1), 3)
+            
+            # Wait for cache to expire
+            time.sleep(1.1)
+            
+            # Second call should fetch again due to expiration
+            result2 = self.fetcher.get_stock_data('AAPL', period='1d')
+            self.assertEqual(len(result2), 3)
+            self.assertEqual(mock_fetch.call_count, 2)
+    
+    def test_cache_key_uniqueness(self):
+        """Test that different parameters create different cache keys"""
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            # Call with different parameters
+            self.fetcher.get_stock_data('AAPL', period='1d')
+            self.fetcher.get_stock_data('AAPL', period='1w')
+            self.fetcher.get_stock_data('GOOGL', period='1d')
+            
+            # Should have 3 different cache entries
+            self.assertEqual(len(self.fetcher.cache), 3)
+    
+    def test_clear_cache(self):
+        """Test that cache clearing works correctly"""
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            # Add some data to cache
+            self.fetcher.get_stock_data('AAPL', period='1d')
+            self.fetcher.get_stock_data('GOOGL', period='1d')
+            
+            # Verify cache has data
+            self.assertGreater(len(self.fetcher.cache), 0)
+            
+            # Clear cache
+            self.fetcher.clear_cache()
+            
+            # Verify cache is empty
+            self.assertEqual(len(self.fetcher.cache), 0)
+            self.assertEqual(len(self.fetcher.cache_timestamps), 0)
+    
+    def test_get_cache_stats(self):
+        """Test that cache statistics are returned correctly"""
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            # Add some data to cache
+            self.fetcher.get_stock_data('AAPL', period='1d')
+            
+            stats = self.fetcher.get_cache_stats()
+            
+            self.assertIn('cache_size', stats)
+            self.assertIn('cache_keys', stats)
+            self.assertIn('total_cache_size_bytes', stats)
+            self.assertIn('cache_duration_seconds', stats)
+            self.assertIn('requests_cache_enabled', stats)
+            
+            self.assertEqual(stats['cache_size'], 1)
+            self.assertTrue(stats['requests_cache_enabled'])
+    
+    def test_session_creation(self):
+        """Test that session is created with proper configuration"""
+        session = self.fetcher._create_session()
+        
+        # Check that session has retry adapter
+        self.assertIsNotNone(session.adapters.get('http://'))
+        self.assertIsNotNone(session.adapters.get('https://'))
+        
+        # Check headers
+        self.assertIn('User-Agent', session.headers)
+        self.assertIn('Accept', session.headers)
+    
+    def test_fetch_with_yfinance_retry_logic(self):
+        """Test that _fetch_with_yfinance uses retry logic"""
+        with patch('yfinance.Ticker') as mock_ticker_class:
+            mock_ticker = Mock()
+            mock_ticker_class.return_value = mock_ticker
+            
+            # First two calls fail, third succeeds
+            mock_ticker.history.side_effect = [
+                ValueError("API Error"),
+                ValueError("API Error"),
+                pd.DataFrame({'Close': [100, 101, 102]})
+            ]
+            
+            result = self.fetcher._fetch_with_yfinance('AAPL', period='1d')
+            
+            self.assertEqual(len(result), 3)
+            self.assertEqual(mock_ticker.history.call_count, 3)
+    
+    def test_fetch_with_yfinance_empty_data_raises_error(self):
+        """Test that empty data raises ValueError"""
+        with patch('yfinance.Ticker') as mock_ticker_class:
+            mock_ticker = Mock()
+            mock_ticker_class.return_value = mock_ticker
+            mock_ticker.history.return_value = pd.DataFrame()  # Empty data
+            
+            with self.assertRaises(ValueError):
+                self.fetcher._fetch_with_yfinance('INVALID', period='1d')
+    
+    def test_lru_cache_functionality(self):
+        """Test that LRU cache works for ticker info"""
+        with patch('yfinance.Ticker') as mock_ticker_class:
+            mock_ticker = Mock()
+            mock_ticker_class.return_value = mock_ticker
+            mock_ticker.info = {'name': 'Apple Inc.', 'sector': 'Technology'}
+            
+            # First call
+            result1 = self.fetcher._get_cached_ticker_info('AAPL')
+            self.assertEqual(result1['name'], 'Apple Inc.')
+            
+            # Second call should use cache
+            result2 = self.fetcher._get_cached_ticker_info('AAPL')
+            self.assertEqual(result2['name'], 'Apple Inc.')
+            
+            # Ticker should only be created once due to LRU cache
+            mock_ticker_class.assert_called_once_with('AAPL')
+    
+    def test_rate_limiting_delays(self):
+        """Test that rate limiting delays are applied"""
+        import time
+        with patch.object(self.fetcher, '_fetch_with_yfinance') as mock_fetch:
+            mock_fetch.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            start_time = time.time()
+            self.fetcher.get_stock_data('AAPL', period='1d')
+            end_time = time.time()
+            
+            # Should have some delay due to rate limiting
+            self.assertGreater(end_time - start_time, 0.05)
+    
+    def test_financial_statements_caching(self):
+        """Test that financial statements are cached correctly"""
+        with patch('yfinance.Ticker') as mock_ticker_class:
+            mock_ticker = Mock()
+            mock_ticker_class.return_value = mock_ticker
+            
+            # Mock financial data
+            mock_ticker.income_stmt = pd.DataFrame({'Revenue': [1000, 1100]})
+            mock_ticker.balance_sheet = pd.DataFrame({'Assets': [2000, 2200]})
+            mock_ticker.cashflow = pd.DataFrame({'Cash': [500, 550]})
+            mock_ticker.info = {'name': 'Apple Inc.'}
+            
+            # First call
+            result1 = self.fetcher.get_financial_statements('AAPL')
+            self.assertIn('income_statement', result1)
+            
+            # Reset mock to verify cache usage
+            mock_ticker_class.reset_mock()
+            
+            # Second call should use cache
+            result2 = self.fetcher.get_financial_statements('AAPL')
+            self.assertIn('income_statement', result2)
+            
+            # Ticker should not be created again due to cache
+            mock_ticker_class.assert_not_called()
+    
+    def test_market_data_caching(self):
+        """Test that market data is cached correctly"""
+        with patch('yfinance.download') as mock_download:
+            mock_download.return_value = pd.DataFrame({'Close': [100, 101, 102]})
+            
+            symbols = ['AAPL', 'GOOGL']
+            
+            # First call
+            result1 = self.fetcher.get_market_data(symbols, period='1d')
+            self.assertEqual(len(result1), 3)
+            
+            # Reset mock
+            mock_download.reset_mock()
+            
+            # Second call should use cache
+            result2 = self.fetcher.get_market_data(symbols, period='1d')
+            self.assertEqual(len(result2), 3)
+            
+            # Download should not be called again due to cache
+            mock_download.assert_not_called()
+    
+    def test_earnings_calendar_caching(self):
+        """Test that earnings calendar is cached correctly"""
+        with patch('yfinance.Ticker') as mock_ticker_class:
+            mock_ticker = Mock()
+            mock_ticker_class.return_value = mock_ticker
+            
+            # Mock earnings calendar data
+            calendar_data = pd.DataFrame({
+                'Earnings Date': ['2024-01-15'],
+                'Earnings Average': [2.50],
+                'Revenue Average': [1000000]
+            })
+            mock_ticker.calendar = calendar_data
+            
+            symbols = ['AAPL']
+            
+            # First call
+            result1 = self.fetcher.get_earnings_calendar(symbols)
+            self.assertGreater(len(result1), 0)
+            
+            # Reset mock
+            mock_ticker_class.reset_mock()
+            
+            # Second call should use cache
+            result2 = self.fetcher.get_earnings_calendar(symbols)
+            self.assertGreater(len(result2), 0)
+            
+            # Ticker should not be created again due to cache
+            mock_ticker_class.assert_not_called()
     
     @patch('yfinance.Ticker')
     def test_get_earnings_calendar(self, mock_ticker):
@@ -228,8 +539,10 @@ class TestDataFetcher(unittest.TestCase):
         self.assertEqual(self.fetcher.cache_duration, 300)
         
         # Test cache clearing
-        result = self.fetcher.clear_cache()
-        self.assertIsInstance(result, bool)
+        self.fetcher.clear_cache()
+        # Verify cache is empty after clearing
+        self.assertEqual(len(self.fetcher.cache), 0)
+        self.assertEqual(len(self.fetcher.cache_timestamps), 0)
 
 
 class TestFinancialDataProcessor(unittest.TestCase):

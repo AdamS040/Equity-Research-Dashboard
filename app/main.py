@@ -1229,7 +1229,20 @@ def create_app(config_name='development'):
                     notifications.append(
                         dbc.Alert([
                             html.I(className="bi bi-exclamation-triangle me-2"),
-                            "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets."
+                            html.Span([
+                                "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets. ",
+                                html.Br(),
+                                html.Br(),
+                                html.Strong("To avoid this issue:"),
+                                html.Br(),
+                                "• Add more diverse assets with different risk profiles",
+                                html.Br(),
+                                "• Use a longer time period for historical data",
+                                html.Br(),
+                                "• Consider removing highly correlated assets from your selection",
+                                html.Br(),
+                                "• Try different optimization methods or adjust constraints"
+                            ])
                         ], color="warning", dismissable=True, className="portfolio-alert")
                     )
                 

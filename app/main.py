@@ -12,6 +12,14 @@ from datetime import datetime, timedelta
 import yfinance as yf
 import json
 import time
+import io
+import base64
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Import custom modules
 from data.market_data import MarketDataFetcher
@@ -468,6 +476,216 @@ def create_app(config_name='development'):
             # Report Results
             html.Div(id="report-results", className="mt-4")
         ]
+    
+    # PDF Generation Function
+    def generate_portfolio_pdf(result, symbols, method):
+        """Generate a professional PDF report for portfolio analysis"""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        story = []
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12,
+            spaceBefore=20,
+            textColor=colors.darkblue
+        )
+        normal_style = styles['Normal']
+        
+        # Title
+        story.append(Paragraph("PORTFOLIO OPTIMIZATION REPORT", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Header information
+        header_data = [
+            ['Generated:', datetime.now().strftime('%B %d, %Y at %H:%M')],
+            ['Optimization Method:', method.replace('_', ' ').title()],
+            ['Portfolio Symbols:', ', '.join(symbols)],
+            ['Number of Assets:', str(len(symbols))]
+        ]
+        header_table = Table(header_data, colWidths=[2*inch, 4*inch])
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(header_table)
+        story.append(Spacer(1, 20))
+        
+        # Portfolio Allocation
+        story.append(Paragraph("PORTFOLIO ALLOCATION", heading_style))
+        if 'allocation' in result:
+            allocation_data = [['Symbol', 'Weight (%)']]
+            total_weight = 0
+            for symbol, weight in zip(symbols, result['allocation']):
+                allocation_data.append([symbol, f"{weight:.2f}%"])
+                total_weight += weight
+            allocation_data.append(['Total', f"{total_weight:.2f}%"])
+            
+            allocation_table = Table(allocation_data, colWidths=[2*inch, 1.5*inch])
+            allocation_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(allocation_table)
+        story.append(Spacer(1, 20))
+        
+        # Portfolio Metrics
+        story.append(Paragraph("PORTFOLIO METRICS", heading_style))
+        if 'portfolio_metrics' in result:
+            metrics = result['portfolio_metrics']
+            metrics_data = [
+                ['Metric', 'Value'],
+                ['Annual Return', f"{metrics.get('annual_return', 0):.2%}"],
+                ['Annual Volatility', f"{metrics.get('annual_volatility', 0):.2%}"],
+                ['Sharpe Ratio', f"{metrics.get('sharpe_ratio', 0):.2f}"],
+                ['Maximum Drawdown', f"{metrics.get('max_drawdown', 0):.2%}"],
+                ['Value at Risk (95%)', f"{metrics.get('var_95', 0):.2%}"],
+                ['Beta', f"{metrics.get('beta', 0):.2f}"],
+                ['Alpha', f"{metrics.get('alpha', 0):.2%}"],
+                ['Information Ratio', f"{metrics.get('information_ratio', 0):.2f}"],
+                ['Calmar Ratio', f"{metrics.get('calmar_ratio', 0):.2f}"]
+            ]
+            
+            metrics_table = Table(metrics_data, colWidths=[2.5*inch, 2*inch])
+            metrics_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(metrics_table)
+        story.append(Spacer(1, 20))
+        
+        # Individual Stock Metrics
+        story.append(Paragraph("INDIVIDUAL STOCK METRICS", heading_style))
+        if 'stock_metrics' in result:
+            stock_data = [['Symbol', 'Annual Return', 'Volatility', 'Sharpe Ratio', 'Max Drawdown']]
+            for symbol in symbols:
+                if symbol in result['stock_metrics']:
+                    metrics = result['stock_metrics'][symbol]
+                    stock_data.append([
+                        symbol,
+                        f"{metrics.get('annual_return', 0):.2%}",
+                        f"{metrics.get('annual_volatility', 0):.2%}",
+                        f"{metrics.get('sharpe_ratio', 0):.2f}",
+                        f"{metrics.get('max_drawdown', 0):.2%}"
+                    ])
+            
+            stock_table = Table(stock_data, colWidths=[1*inch, 1.2*inch, 1.2*inch, 1.2*inch, 1.2*inch])
+            stock_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(stock_table)
+        story.append(Spacer(1, 20))
+        
+        # Risk Analysis
+        story.append(Paragraph("RISK ANALYSIS", heading_style))
+        if 'portfolio_metrics' in result:
+            metrics = result['portfolio_metrics']
+            volatility = metrics.get('annual_volatility', 0)
+            if volatility > 0.25:
+                risk_level = "HIGH"
+            elif volatility > 0.15:
+                risk_level = "MEDIUM"
+            else:
+                risk_level = "LOW"
+            
+            risk_data = [
+                ['Risk Level', risk_level],
+                ['Volatility Classification', 'High' if volatility > 0.25 else 'Medium' if volatility > 0.15 else 'Low'],
+                ['Diversification', 'Good' if len(symbols) >= 10 else 'Moderate' if len(symbols) >= 5 else 'Limited']
+            ]
+            
+            risk_table = Table(risk_data, colWidths=[2.5*inch, 2*inch])
+            risk_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(risk_table)
+        story.append(Spacer(1, 20))
+        
+        # Recommendations
+        story.append(Paragraph("RECOMMENDATIONS", heading_style))
+        recommendations = []
+        if 'portfolio_metrics' in result:
+            metrics = result['portfolio_metrics']
+            sharpe = metrics.get('sharpe_ratio', 0)
+            max_dd = metrics.get('max_drawdown', 0)
+            
+            if sharpe > 1.0:
+                recommendations.append("✓ Strong risk-adjusted returns")
+            elif sharpe > 0.5:
+                recommendations.append("✓ Moderate risk-adjusted returns")
+            else:
+                recommendations.append("⚠ Consider risk management strategies")
+            
+            if max_dd < -0.15:
+                recommendations.append("⚠ High maximum drawdown - consider defensive positions")
+            elif max_dd < -0.10:
+                recommendations.append("⚠ Moderate drawdown risk")
+            else:
+                recommendations.append("✓ Acceptable drawdown levels")
+            
+            if len(symbols) < 5:
+                recommendations.append("⚠ Limited diversification - consider adding more positions")
+            elif len(symbols) < 10:
+                recommendations.append("✓ Moderate diversification")
+            else:
+                recommendations.append("✓ Good diversification")
+        
+        for rec in recommendations:
+            story.append(Paragraph(rec, normal_style))
+        
+        story.append(Spacer(1, 30))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            alignment=TA_CENTER,
+            textColor=colors.grey
+        )
+        story.append(Paragraph("Report generated by Equity Research Dashboard", footer_style))
+        story.append(Paragraph("For investment advice, consult with a qualified financial advisor.", footer_style))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
     
     # Callbacks
     @app.callback(
@@ -1326,7 +1544,8 @@ def create_app(config_name='development'):
                     }),
                     # Download components
                     dcc.Download(id="download-json"),
-                    dcc.Download(id="download-csv")
+                    dcc.Download(id="download-csv"),
+                    dcc.Download(id="download-pdf")
                 ])
             ], className="portfolio-export-section")
         ]
@@ -2412,13 +2631,13 @@ def create_app(config_name='development'):
     
     @app.callback(
     [Output("generate-report-btn", "children"),
-     Output("download-csv", "data", allow_duplicate=True)],  # Reuse CSV download for report
+     Output("download-pdf", "data")],
     Input("generate-report-btn", "n_clicks"),
     State("portfolio-export-data", "data"),
     prevent_initial_call=True
 )
     def generate_portfolio_report(n_clicks, portfolio_data):
-        """Generate a comprehensive portfolio report"""
+        """Generate a comprehensive portfolio report as PDF"""
         if not n_clicks or not portfolio_data:
             raise dash.exceptions.PreventUpdate
         
@@ -2427,111 +2646,18 @@ def create_app(config_name='development'):
             symbols = portfolio_data['symbols']
             method = portfolio_data['method']
             
-            # Create comprehensive report content
-            report_content = f"""
-PORTFOLIO OPTIMIZATION REPORT
-Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}
-{'='*60}
-
-EXECUTIVE SUMMARY:
-Optimization Method: {method.replace('_', ' ').title()}
-Portfolio Symbols: {', '.join(symbols)}
-Number of Assets: {len(symbols)}
-
-PORTFOLIO ALLOCATION:
-{'-'*30}"""
+            # Generate PDF using the PDF generation function
+            pdf_content = generate_portfolio_pdf(result, symbols, method)
             
-            if 'allocation' in result:
-                total_weight = 0
-                for symbol, weight in zip(symbols, result['allocation']):
-                    report_content += f"\n{symbol:<10} {weight:>8.2f}%"
-                    total_weight += weight
-                report_content += f"\n{'Total':<10} {total_weight:>8.2f}%"
+            # Encode PDF content to Base64 for JSON serialization
+            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
             
-            report_content += "\n\nPORTFOLIO METRICS:"
-            report_content += "\n" + "-"*30
-            
-            if 'portfolio_metrics' in result:
-                metrics = result['portfolio_metrics']
-                report_content += f"""
-Annual Return:        {metrics.get('annual_return', 0):>10.2%}
-Annual Volatility:    {metrics.get('annual_volatility', 0):>10.2%}
-Sharpe Ratio:         {metrics.get('sharpe_ratio', 0):>10.2f}
-Maximum Drawdown:     {metrics.get('max_drawdown', 0):>10.2%}
-Value at Risk (95%):  {metrics.get('var_95', 0):>10.2%}
-Beta:                 {metrics.get('beta', 0):>10.2f}
-Alpha:                {metrics.get('alpha', 0):>10.2%}
-Information Ratio:    {metrics.get('information_ratio', 0):>10.2f}
-Calmar Ratio:         {metrics.get('calmar_ratio', 0):>10.2f}"""
-            
-            report_content += "\n\nINDIVIDUAL STOCK METRICS:"
-            report_content += "\n" + "-"*50
-            
-            if 'stock_metrics' in result:
-                report_content += "\nSymbol    Annual Return  Volatility  Sharpe Ratio  Max Drawdown"
-                report_content += "\n" + "-"*60
-                for symbol in symbols:
-                    if symbol in result['stock_metrics']:
-                        metrics = result['stock_metrics'][symbol]
-                        report_content += f"\n{symbol:<9} {metrics.get('annual_return', 0):>12.2%} {metrics.get('annual_volatility', 0):>10.2%} {metrics.get('sharpe_ratio', 0):>12.2f} {metrics.get('max_drawdown', 0):>12.2%}"
-            
-            report_content += "\n\nRISK ANALYSIS:"
-            report_content += "\n" + "-"*20
-            
-            if 'portfolio_metrics' in result:
-                metrics = result['portfolio_metrics']
-                volatility = metrics.get('annual_volatility', 0)
-                if volatility > 0.25:
-                    risk_level = "HIGH"
-                elif volatility > 0.15:
-                    risk_level = "MEDIUM"
-                else:
-                    risk_level = "LOW"
-                
-                report_content += f"""
-Risk Level: {risk_level}
-Volatility Classification: {'High' if volatility > 0.25 else 'Medium' if volatility > 0.15 else 'Low'}
-Diversification: {'Good' if len(symbols) >= 10 else 'Moderate' if len(symbols) >= 5 else 'Limited'}
-"""
-            
-            report_content += "\n\nRECOMMENDATIONS:"
-            report_content += "\n" + "-"*20
-            
-            if 'portfolio_metrics' in result:
-                metrics = result['portfolio_metrics']
-                sharpe = metrics.get('sharpe_ratio', 0)
-                max_dd = metrics.get('max_drawdown', 0)
-                
-                if sharpe > 1.0:
-                    report_content += "\n✓ Strong risk-adjusted returns"
-                elif sharpe > 0.5:
-                    report_content += "\n✓ Moderate risk-adjusted returns"
-                else:
-                    report_content += "\n⚠ Consider risk management strategies"
-                
-                if max_dd < -0.15:
-                    report_content += "\n⚠ High maximum drawdown - consider defensive positions"
-                elif max_dd < -0.10:
-                    report_content += "\n⚠ Moderate drawdown risk"
-                else:
-                    report_content += "\n✓ Acceptable drawdown levels"
-                
-                if len(symbols) < 5:
-                    report_content += "\n⚠ Limited diversification - consider adding more positions"
-                elif len(symbols) < 10:
-                    report_content += "\n✓ Moderate diversification"
-                else:
-                    report_content += "\n✓ Good diversification"
-            
-            report_content += f"\n\nReport generated by Equity Research Dashboard"
-            report_content += f"\nFor investment advice, consult with a qualified financial advisor."
-            
-            # Create filename
-            filename = f"portfolio_report_{method}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            # Create filename with .pdf extension
+            filename = f"Portfolio_Report_{method}_{datetime.now().strftime('%Y-%m-%d')}.pdf"
             
             return [
-                [html.I(className="fas fa-check me-2"), "Report Generated"],
-                dict(content=report_content, filename=filename)
+                [html.I(className="fas fa-check me-2"), "PDF Generated"],
+                dict(content=pdf_base64, filename=filename, type='application/pdf', base64=True)
             ]
             
         except Exception as e:

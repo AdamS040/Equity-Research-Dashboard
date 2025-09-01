@@ -56,7 +56,7 @@ class AuthManager:
         self.db_path = os.path.join(app.instance_path, 'users.db')
         self.login_manager = LoginManager()
         self.login_manager.init_app(app)
-        self.login_manager.login_view = 'auth.login'
+        self.login_manager.login_view = 'login'
         self.login_manager.login_message = 'Please log in to access this page.'
         
         # Setup login manager
@@ -392,7 +392,7 @@ def require_role(role: str):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
-                return redirect(url_for('auth.login'))
+                return redirect(url_for('login'))
             
             if current_user.role != role and current_user.role != 'admin':
                 flash('Insufficient permissions', 'error')

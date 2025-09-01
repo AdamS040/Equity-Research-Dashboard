@@ -90,24 +90,8 @@ def create_app(config_name='development'):
     
     # App layout
     app.layout = dbc.Container([
-        # Header with authentication
-        dbc.NavbarSimple(
-            brand="🏦 Equity Research Dashboard",
-            brand_href="#",
-            color="primary",
-            dark=True,
-            className="mb-4",
-            children=[
-                dbc.NavItem(dbc.NavLink("Dashboard", href="#dashboard")),
-                dbc.NavItem(dbc.NavLink("Analysis", href="#analysis")),
-                dbc.NavItem(dbc.NavLink("Portfolio", href="#portfolio")),
-                dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
-                dbc.NavItem(dbc.NavLink("Profile", href="/auth/profile", external_link=True)),
-                dbc.NavItem(dbc.NavLink("Login", href="/auth/login", external_link=True)),
-                # Logout button will be conditionally shown via callback
-                html.Div(id="logout-button-container", style={"display": "none"})
-            ]
-        ),
+        # Header with dynamic authentication
+        html.Div(id="navbar-container"),
         
         # Main content
         dcc.Tabs(id="main-tabs", value="dashboard", children=[
@@ -2687,6 +2671,67 @@ def create_app(config_name='development'):
             ])
         ]
     
+    # Navbar callback
+    @app.callback(
+        Output('navbar-container', 'children'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_navbar(n):
+        """Update navbar based on authentication status"""
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                # User is logged in - show full navbar with profile and logout
+                return dbc.NavbarSimple(
+                    brand="🏦 Equity Research Dashboard",
+                    brand_href="#",
+                    color="primary",
+                    dark=True,
+                    className="mb-4",
+                    children=[
+                        dbc.NavItem(dbc.NavLink("Dashboard", href="#dashboard")),
+                        dbc.NavItem(dbc.NavLink("Analysis", href="#analysis")),
+                        dbc.NavItem(dbc.NavLink("Portfolio", href="#portfolio")),
+                        dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
+                        dbc.NavItem(dbc.NavLink("Profile", href="/auth/profile", external_link=True)),
+                        dbc.NavItem(dbc.NavLink("Logout", href="/auth/logout", external_link=True))
+                    ]
+                )
+            else:
+                # User is not logged in - show limited navbar with login/register
+                return dbc.NavbarSimple(
+                    brand="🏦 Equity Research Dashboard",
+                    brand_href="#",
+                    color="primary",
+                    dark=True,
+                    className="mb-4",
+                    children=[
+                        dbc.NavItem(dbc.NavLink("Dashboard", href="#dashboard")),
+                        dbc.NavItem(dbc.NavLink("Analysis", href="#analysis")),
+                        dbc.NavItem(dbc.NavLink("Portfolio", href="#portfolio")),
+                        dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
+                        dbc.NavItem(dbc.NavLink("Login", href="/auth/login", external_link=True)),
+                        dbc.NavItem(dbc.NavLink("Register", href="/auth/register", external_link=True))
+                    ]
+                )
+        except Exception as e:
+            print(f"Error in navbar callback: {str(e)}")
+            # Fallback to basic navbar if there's an error
+            return dbc.NavbarSimple(
+                brand="🏦 Equity Research Dashboard",
+                brand_href="#",
+                color="primary",
+                dark=True,
+                className="mb-4",
+                children=[
+                    dbc.NavItem(dbc.NavLink("Dashboard", href="#dashboard")),
+                    dbc.NavItem(dbc.NavLink("Analysis", href="#analysis")),
+                    dbc.NavItem(dbc.NavLink("Portfolio", href="#portfolio")),
+                    dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
+                    dbc.NavItem(dbc.NavLink("Login", href="/auth/login", external_link=True))
+                ]
+            )
+
     # Authentication callbacks
     @app.callback(
         Output('auth-status', 'children'),
@@ -3227,27 +3272,7 @@ def create_app(config_name='development'):
                 None
             ]
     
-    @app.callback(
-        Output("logout-button-container", "children"),
-        Output("logout-button-container", "style"),
-        Input("interval-component", "n_intervals")
-    )
-    def update_logout_button_visibility(n_intervals):
-        """Update logout button visibility based on authentication status"""
-        try:
-            from flask_login import current_user
-            if current_user.is_authenticated:
-                # User is logged in, show logout button
-                logout_button = dbc.NavItem(
-                    dbc.NavLink("Logout", href="/auth/logout", external_link=True)
-                )
-                return logout_button, {"display": "block"}
-            else:
-                # User is not logged in, hide logout button
-                return "", {"display": "none"}
-        except Exception:
-            # If there's an error, hide the button
-            return "", {"display": "none"}
+
     
     return app
 

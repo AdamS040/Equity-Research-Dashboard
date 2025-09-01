@@ -914,16 +914,16 @@ def create_app(config_name='development'):
                     print(f"Error fetching {config['name']}: {e}")
                     results.extend(["N/A", "N/A"])
             
-            # If no real data was fetched, provide sample data for demonstration
+            # If no real data was fetched, provide fallback values
             if not got_real_data:
-                print("No real data available, providing sample data for demonstration")
-                sample_data = [
-                    "$4,567.89", "+12.34 (+0.27%)",  # S&P 500
-                    "$14,234.56", "+45.67 (+0.32%)",  # NASDAQ  
-                    "15.67", "-0.23 (-1.45%)",        # VIX
-                    "4.25%", "+0.05 (+1.19%)"         # 10Y Treasury
+                print("No real data available, providing fallback values")
+                fallback_data = [
+                    "N/A", "N/A",  # S&P 500
+                    "N/A", "N/A",  # NASDAQ  
+                    "N/A", "N/A",  # VIX
+                    "N/A", "N/A"   # 10Y Treasury
                 ]
-                results = sample_data
+                results = fallback_data
             
             # Create market performance chart with available data
             fig = go.Figure()
@@ -960,33 +960,14 @@ def create_app(config_name='development'):
                 except Exception as e:
                     print(f"Error creating chart for {name}: {e}")
             
-            # If no chart data available, create sample chart
+            # If no chart data available, create empty chart with message
             if not chart_data_available:
-                import numpy as np
-                from datetime import datetime, timedelta
-                
-                # Create sample dates for the last 5 days
-                dates = [datetime.now() - timedelta(days=i) for i in range(4, -1, -1)]
-                
-                # Sample data for S&P 500 and NASDAQ
-                sp500_data = [4560, 4570, 4580, 4565, 4567.89]
-                nasdaq_data = [14200, 14250, 14300, 14280, 14234.56]
-                
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=sp500_data,
-                    mode='lines',
-                    name='S&P 500',
-                    line=dict(width=2, color='blue')
-                ))
-                
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=nasdaq_data,
-                    mode='lines',
-                    name='NASDAQ',
-                    line=dict(width=2, color='red')
-                ))
+                fig.add_annotation(
+                    text="No market data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False,
+                    font=dict(size=16, color="gray")
+                )
             
             fig.update_layout(
                 title="Market Performance (5 Days)",
@@ -1152,6 +1133,88 @@ def create_app(config_name='development'):
             return [
                 dbc.Alert(f"Error analyzing {symbol}: {str(e)}", color="danger")
             ]
+    
+    # Sector performance callback
+    @app.callback(
+        Output('sector-performance-chart', 'figure'),
+        Input('interval-component', 'n_intervals')
+    )
+    def update_sector_performance(n):
+        """Update sector performance chart with real data"""
+        try:
+            # Get real sector performance data
+            sector_data = market_data.get_sector_performance(period='1mo')
+            
+            if sector_data.empty:
+                # Fallback to empty chart if no data available
+                fig = go.Figure()
+                fig.add_annotation(
+                    text="No sector data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                fig.update_layout(
+                    title="Sector Performance (1 Month)",
+                    xaxis_title="Sector",
+                    yaxis_title="Performance (%)",
+                    template="plotly_white",
+                    height=400,
+                    margin=dict(l=50, r=50, t=100, b=80)
+                )
+                return fig
+            
+            # Create chart with real data
+            fig = go.Figure()
+            
+            # Use daily change percentage for the chart
+            sectors = sector_data['Sector'].tolist()
+            performance = sector_data['Daily_Change_Pct'].tolist()
+            
+            # Color bars based on performance (green for positive, red for negative)
+            colors = ['green' if p >= 0 else 'red' for p in performance]
+            
+            fig.add_trace(go.Bar(
+                x=sectors,
+                y=performance,
+                marker_color=colors,
+                text=[f'{p:.2f}%' for p in performance],
+                textposition='auto',
+                hovertemplate='<b>%{x}</b><br>' +
+                            'Daily Change: %{y:.2f}%<br>' +
+                            '<extra></extra>'
+            ))
+            
+            fig.update_layout(
+                title="Sector Performance (1 Day)",
+                xaxis_title="Sector",
+                yaxis_title="Performance (%)",
+                template="plotly_white",
+                height=400,
+                showlegend=False,
+                xaxis={'tickangle': 45},
+                margin=dict(l=50, r=50, t=100, b=80)
+            )
+            
+            return fig
+            
+        except Exception as e:
+            logging.error(f"Error in sector performance callback: {str(e)}")
+            # Return empty chart on error
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Error loading data: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title="Sector Performance (1 Day)",
+                xaxis_title="Sector",
+                yaxis_title="Performance (%)",
+                template="plotly_white",
+                height=400,
+                margin=dict(l=50, r=50, t=100, b=80)
+            )
+            return fig
     
     # Portfolio optimization callback
     @app.callback(
@@ -2667,20 +2730,17 @@ def create_app(config_name='development'):
                     continue
             
             if not changes:
-                # Return sample data if no real data available
-                sample_changes = [
-                    {'Symbol': 'NVDA', 'Price': 485.67, 'Change': 12.34, 'Change%': 2.61, 'Volume': 45678900},
-                    {'Symbol': 'TSLA', 'Price': 234.56, 'Change': 8.91, 'Change%': 3.95, 'Volume': 67890100},
-                    {'Symbol': 'META', 'Price': 345.78, 'Change': 6.78, 'Change%': 2.00, 'Volume': 34567800},
-                    {'Symbol': 'AAPL', 'Price': 178.90, 'Change': 4.56, 'Change%': 2.62, 'Volume': 56789000},
-                    {'Symbol': 'MSFT', 'Price': 378.45, 'Change': 3.21, 'Change%': 0.86, 'Volume': 23456700},
-                    {'Symbol': 'AMZN', 'Price': 145.67, 'Change': -2.34, 'Change%': -1.58, 'Volume': 45678900},
-                    {'Symbol': 'GOOGL', 'Price': 134.56, 'Change': -3.45, 'Change%': -2.50, 'Volume': 34567800},
-                    {'Symbol': 'JPM', 'Price': 167.89, 'Change': -4.67, 'Change%': -2.71, 'Volume': 12345600},
-                    {'Symbol': 'BAC', 'Price': 34.56, 'Change': -1.23, 'Change%': -3.44, 'Volume': 78901200},
-                    {'Symbol': 'WMT', 'Price': 67.89, 'Change': -2.45, 'Change%': -3.48, 'Volume': 23456700}
+                # Return empty list if no real data available
+                changes = []
+            
+            # Check if we have data to display
+            if not changes:
+                return [
+                    dbc.Alert([
+                        html.I(className="fas fa-info-circle me-2"),
+                        "No market data available at the moment. Please try again later.",
+                    ], color="info")
                 ]
-                changes = sample_changes
             
             # Sort by percentage change
             changes.sort(key=lambda x: x['Change%'], reverse=True)
@@ -2788,84 +2848,7 @@ def create_app(config_name='development'):
                 ], color="warning")
             ]
     
-    @app.callback(
-        Output('sector-performance-chart', 'figure'),
-        Input('interval-component', 'n_intervals')
-    )
-    def update_sector_performance(n):
-        """Update sector performance chart with real data"""
-        try:
-            # Get real sector performance data
-            sector_data = market_data.get_sector_performance(period='1mo')
-            
-            if sector_data.empty:
-                # Fallback to empty chart if no data available
-                fig = go.Figure()
-                fig.add_annotation(
-                    text="No sector data available",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5, showarrow=False
-                )
-                fig.update_layout(
-                    title="Sector Performance (1 Month)",
-                    xaxis_title="Sector",
-                    yaxis_title="Performance (%)",
-                    template="plotly_white",
-                    height=300
-                )
-                return fig
-            
-            # Create chart with real data
-            fig = go.Figure()
-            
-            # Use daily change percentage for the chart
-            sectors = sector_data['Sector'].tolist()
-            performance = sector_data['Daily_Change_Pct'].tolist()
-            
-            # Color bars based on performance (green for positive, red for negative)
-            colors = ['green' if p >= 0 else 'red' for p in performance]
-            
-            fig.add_trace(go.Bar(
-                x=sectors,
-                y=performance,
-                marker_color=colors,
-                text=[f'{p:.2f}%' for p in performance],
-                textposition='auto',
-                hovertemplate='<b>%{x}</b><br>' +
-                            'Daily Change: %{y:.2f}%<br>' +
-                            '<extra></extra>'
-            ))
-            
-            fig.update_layout(
-                title="Sector Performance (1 Day)",
-                xaxis_title="Sector",
-                yaxis_title="Performance (%)",
-                template="plotly_white",
-                height=300,
-                showlegend=False,
-                xaxis={'tickangle': 45},
-                margin=dict(l=50, r=50, t=80, b=80)
-            )
-            
-            return fig
-            
-        except Exception as e:
-            logging.error(f"Error in sector performance callback: {str(e)}")
-            # Return empty chart on error
-            fig = go.Figure()
-            fig.add_annotation(
-                text=f"Error loading data: {str(e)}",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, showarrow=False
-            )
-            fig.update_layout(
-                title="Sector Performance (1 Day)",
-                xaxis_title="Sector",
-                yaxis_title="Performance (%)",
-                template="plotly_white",
-                height=300
-            )
-            return fig
+
     
     # Portfolio Export Callbacks
     @app.callback(

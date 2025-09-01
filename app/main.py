@@ -56,6 +56,10 @@ def create_app(config_name='development'):
     app.server.config['SECRET_KEY'] = config_class.SECRET_KEY
     app.server.config['DEBUG'] = config_class.DEBUG
     
+    # Ensure proper session configuration for Flask-Login
+    app.server.config['SESSION_TYPE'] = 'filesystem'
+    app.server.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+    
     # Configure Flask template directory to point to root templates folder
     import os
     app.server.template_folder = os.path.abspath('templates')
@@ -66,6 +70,14 @@ def create_app(config_name='development'):
     
     # Store auth_manager in app config for access in callbacks
     app.server.config['auth_manager'] = auth_manager
+    
+    # Add context processor to make current_user available in templates
+    @app.server.context_processor
+    def inject_user():
+        from flask_login import current_user
+        return dict(current_user=current_user)
+    
+
     
     # Initialize data services
     market_data = MarketDataFetcher()
@@ -92,7 +104,8 @@ def create_app(config_name='development'):
                 dbc.NavItem(dbc.NavLink("Reports", href="#reports")),
                 dbc.NavItem(dbc.NavLink("Profile", href="/auth/profile", external_link=True)),
                 dbc.NavItem(dbc.NavLink("Login", href="/auth/login", external_link=True)),
-                dbc.NavItem(dbc.NavLink("Logout", href="/auth/logout", external_link=True)),
+                # Logout button will be conditionally shown via callback
+                html.Div(id="logout-button-container", style={"display": "none"})
             ]
         ),
         
@@ -3213,6 +3226,28 @@ def create_app(config_name='development'):
                 [html.I(className="fas fa-exclamation-triangle me-2"), f"Error: {str(e)}"],
                 None
             ]
+    
+    @app.callback(
+        Output("logout-button-container", "children"),
+        Output("logout-button-container", "style"),
+        Input("interval-component", "n_intervals")
+    )
+    def update_logout_button_visibility(n_intervals):
+        """Update logout button visibility based on authentication status"""
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                # User is logged in, show logout button
+                logout_button = dbc.NavItem(
+                    dbc.NavLink("Logout", href="/auth/logout", external_link=True)
+                )
+                return logout_button, {"display": "block"}
+            else:
+                # User is not logged in, hide logout button
+                return "", {"display": "none"}
+        except Exception:
+            # If there's an error, hide the button
+            return "", {"display": "none"}
     
     return app
 

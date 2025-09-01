@@ -14,6 +14,7 @@ import json
 import time
 import io
 import base64
+import logging
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2792,17 +2793,47 @@ def create_app(config_name='development'):
         Input('interval-component', 'n_intervals')
     )
     def update_sector_performance(n):
-        """Update sector performance chart"""
+        """Update sector performance chart with real data"""
         try:
-            # Create a sample sector performance chart
+            # Get real sector performance data
+            sector_data = market_data.get_sector_performance(period='1mo')
+            
+            if sector_data.empty:
+                # Fallback to empty chart if no data available
+                fig = go.Figure()
+                fig.add_annotation(
+                    text="No sector data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                fig.update_layout(
+                    title="Sector Performance (1 Month)",
+                    xaxis_title="Sector",
+                    yaxis_title="Performance (%)",
+                    template="plotly_white",
+                    height=300
+                )
+                return fig
+            
+            # Create chart with real data
             fig = go.Figure()
-            sectors = ['Technology', 'Healthcare', 'Financials', 'Consumer Discretionary', 'Communication Services']
-            performance = [2.5, 1.8, -0.5, 3.2, 1.1]  # Sample data
+            
+            # Use daily change percentage for the chart
+            sectors = sector_data['Sector'].tolist()
+            performance = sector_data['Daily_Change_Pct'].tolist()
+            
+            # Color bars based on performance (green for positive, red for negative)
+            colors = ['green' if p >= 0 else 'red' for p in performance]
             
             fig.add_trace(go.Bar(
                 x=sectors,
                 y=performance,
-                marker_color=['green' if p > 0 else 'red' for p in performance]
+                marker_color=colors,
+                text=[f'{p:.2f}%' for p in performance],
+                textposition='auto',
+                hovertemplate='<b>%{x}</b><br>' +
+                            'Daily Change: %{y:.2f}%<br>' +
+                            '<extra></extra>'
             ))
             
             fig.update_layout(
@@ -2810,13 +2841,31 @@ def create_app(config_name='development'):
                 xaxis_title="Sector",
                 yaxis_title="Performance (%)",
                 template="plotly_white",
-                height=300
+                height=300,
+                showlegend=False,
+                xaxis={'tickangle': 45},
+                margin=dict(l=50, r=50, t=80, b=80)
             )
             
             return fig
+            
         except Exception as e:
-            print(f"Error in sector performance callback: {str(e)}")
-            return go.Figure()
+            logging.error(f"Error in sector performance callback: {str(e)}")
+            # Return empty chart on error
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Error loading data: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title="Sector Performance (1 Day)",
+                xaxis_title="Sector",
+                yaxis_title="Performance (%)",
+                template="plotly_white",
+                height=300
+            )
+            return fig
     
     # Portfolio Export Callbacks
     @app.callback(

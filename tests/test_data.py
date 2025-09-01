@@ -846,6 +846,36 @@ class TestMarketDataFetcher(unittest.TestCase):
         # Test cache duration setting
         self.fetcher.cache_duration = 300
         self.assertEqual(self.fetcher.cache_duration, 300)
+    
+    @patch('yfinance.Ticker')
+    def test_get_sector_performance(self, mock_ticker):
+        """Test getting sector performance data"""
+        # Mock ticker data
+        mock_ticker_instance = Mock()
+        
+        # Mock historical data for sector ETFs
+        dates = pd.date_range(start='2024-01-01', end='2024-01-31', freq='D')
+        mock_data = pd.DataFrame({
+            'Open': [100] * len(dates),
+            'High': [105] * len(dates),
+            'Low': [95] * len(dates),
+            'Close': [100 + i * 0.5 for i in range(len(dates))],  # Increasing trend
+            'Volume': [1000000] * len(dates)
+        }, index=dates)
+        mock_ticker_instance.history.return_value = mock_data
+        mock_ticker.return_value = mock_ticker_instance
+        
+        # Test the method
+        result = self.fetcher.get_sector_performance(period='1mo')
+        
+        # Verify result structure
+        self.assertIsInstance(result, pd.DataFrame)
+        if not result.empty:
+            self.assertIn('Sector', result.columns)
+            self.assertIn('ETF', result.columns)
+            self.assertIn('Daily_Change_Pct', result.columns)
+            self.assertIn('Period_Change_Pct', result.columns)
+            self.assertIn('Current_Price', result.columns)
 
 
 class TestIntegration(unittest.TestCase):

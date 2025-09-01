@@ -206,16 +206,80 @@ class MarketDataFetcher:
     
     def get_sector_performance(self, period: str = '1mo') -> pd.DataFrame:
         """
-        Get sector performance data
+        Get sector performance data with percentage changes
         
         Args:
             period (str): Time period
             
         Returns:
-            pd.DataFrame: Sector performance data
+            pd.DataFrame: Sector performance data with percentage changes
         """
-        symbols = list(self.sector_etfs.values())
-        return self.get_multiple_stocks(symbols, period)
+        try:
+            cache_key = f"sector_performance_{period}"
+            
+            # Check cache
+            if self._is_cache_valid(cache_key):
+                return self.cache[cache_key]
+            
+            logger.info("Fetching sector performance data from ETFs")
+            
+            performance_data = []
+            
+            for sector_name, etf_symbol in self.sector_etfs.items():
+                try:
+                    # Get ETF data for the specified period
+                    ticker = yf.Ticker(etf_symbol)
+                    data = ticker.history(period=period)
+                    
+                    if not data.empty and len(data) >= 2:
+                        # Calculate percentage change from start to end of period
+                        start_price = data['Close'].iloc[0]
+                        end_price = data['Close'].iloc[-1]
+                        change_pct = ((end_price - start_price) / start_price) * 100
+                        
+                        # Also get 1-day change for more recent performance
+                        if len(data) >= 2:
+                            current_price = data['Close'].iloc[-1]
+                            previous_price = data['Close'].iloc[-2]
+                            daily_change_pct = ((current_price - previous_price) / previous_price) * 100
+                        else:
+                            daily_change_pct = 0.0
+                        
+                        performance_data.append({
+                            'Sector': sector_name,
+                            'ETF': etf_symbol,
+                            'Current_Price': end_price,
+                            'Period_Change_Pct': round(change_pct, 2),
+                            'Daily_Change_Pct': round(daily_change_pct, 2),
+                            'Start_Price': start_price,
+                            'End_Price': end_price
+                        })
+                        
+                        # Add small delay to avoid rate limiting
+                        time.sleep(0.1)
+                        
+                except Exception as e:
+                    logger.warning(f"Error fetching data for {sector_name} ({etf_symbol}): {e}")
+                    continue
+            
+            if performance_data:
+                result = pd.DataFrame(performance_data)
+                # Sort by daily change percentage
+                result = result.sort_values('Daily_Change_Pct', ascending=False)
+                
+                # Cache the result
+                self.cache[cache_key] = result
+                self.last_update[cache_key] = time.time()
+                
+                logger.info(f"Successfully fetched sector performance for {len(result)} sectors")
+                return result
+            else:
+                logger.warning("No sector performance data available")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            logger.error(f"Error fetching sector performance: {str(e)}")
+            return pd.DataFrame()
     
     def get_real_time_quote(self, symbol: str) -> Dict:
         """

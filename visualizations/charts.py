@@ -8,6 +8,62 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 import yfinance as yf
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def validate_chart_data(stock_data, required_keys):
+    """Check if required data keys exist and have valid values"""
+    missing_keys = []
+    for key in required_keys:
+        if key not in stock_data or stock_data[key] is None or (hasattr(stock_data[key], 'isna') and stock_data[key].isna().all()):
+            missing_keys.append(key)
+    return missing_keys
+
+def create_empty_chart_with_message(message: str, title: str = "Chart Unavailable") -> go.Figure:
+    """Create a placeholder chart with a message when data is missing"""
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message,
+        xref="paper", yref="paper",
+        x=0.5, y=0.5,
+        xanchor='center', yanchor='middle',
+        showarrow=False,
+        font=dict(size=16, color="gray")
+    )
+    fig.update_layout(
+        title=title,
+        template='plotly_white',
+        height=400,
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    return fig
+
+def validate_dataframe(data: pd.DataFrame, min_rows: int = 1) -> bool:
+    """Validate if DataFrame has sufficient data for charting"""
+    if data is None or data.empty or len(data) < min_rows:
+        return False
+    return True
+
+def safe_calculate_returns(data: pd.DataFrame) -> Optional[pd.Series]:
+    """Safely calculate returns with error handling"""
+    try:
+        if not validate_dataframe(data, 2):
+            return None
+        if 'Close' not in data.columns:
+            return None
+        returns = data['Close'].pct_change().dropna()
+        if len(returns) == 0:
+            return None
+        return returns
+    except Exception as e:
+        logger.warning(f"Error calculating returns: {e}")
+        return None
 
 class ChartGenerator:
     """
@@ -732,4 +788,5 @@ class ChartGenerator:
             
         except Exception as e:
             print(f"Error creating valuation comparison chart: {e}")
+       
             return go.Figure()

@@ -27,8 +27,7 @@ class Config:
     
     # Data Settings
     DEFAULT_STOCKS = [
-        'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 
-        'META', 'NVDA', 'JPM', 'V', 'JNJ'
+        'AAPL', 'JPM', 'JNJ', 'PG', 'XOM'
     ]
     
     # Market Data Settings

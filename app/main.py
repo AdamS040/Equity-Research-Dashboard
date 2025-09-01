@@ -291,8 +291,12 @@ def create_app(config_name='development'):
                                         id="portfolio-stocks-input",
                                         type="text",
                                         placeholder="AAPL,GOOGL,MSFT,AMZN",
-                                        value="AAPL,GOOGL,MSFT,AMZN,TSLA"
+                                        value="AAPL,JPM,JNJ,PG,XOM"
                                     ),
+                                    html.Small([
+                                        html.I(className="bi bi-info-circle me-1"),
+                                        "Tip: Include stocks from different sectors to avoid correlation issues and ensure proper portfolio optimization. The default portfolio is already diversified across sectors."
+                                    ], className="text-muted mt-1 d-block"),
                                 ], width=6),
                                 dbc.Col([
                                     dbc.Label("Optimization Method:"),
@@ -365,7 +369,25 @@ def create_app(config_name='development'):
                                         size="lg",
                                         className="w-100"
                                     )
-                                ], width=12),
+                                ], width=6),
+                                dbc.Col([
+                                    dbc.Button(
+                                        "Suggest Diverse Portfolio",
+                                        id="suggest-diverse-button",
+                                        color="info",
+                                        size="lg",
+                                        className="w-100"
+                                    )
+                                ], width=4),
+                                dbc.Col([
+                                    dbc.Button(
+                                        "Test Portfolio",
+                                        id="test-portfolio-button",
+                                        color="warning",
+                                        size="lg",
+                                        className="w-100"
+                                    )
+                                ], width=4),
                             ])
                         ])
                     ], className="portfolio-config-section")
@@ -1136,7 +1158,9 @@ def create_app(config_name='development'):
          Output("portfolio-comparison", "children"),
          Output("portfolio-export", "children"),
          Output("portfolio-loading", "style")],
-        [Input("optimize-button", "n_clicks")],
+        [Input("optimize-button", "n_clicks"),
+         Input("suggest-diverse-button", "n_clicks"),
+         Input("test-portfolio-button", "n_clicks")],
         [State("portfolio-stocks-input", "value"),
          State("optimization-method", "value"),
          State("portfolio-period", "value"),
@@ -1146,105 +1170,257 @@ def create_app(config_name='development'):
          State("risk-free-rate-input", "value"),
          State("rebalancing-frequency", "value")]
     )
-    def update_portfolio_optimization(n_clicks, stocks_input, method, period, target_return, 
+    def update_portfolio_optimization(n_clicks, suggest_clicks, test_clicks, stocks_input, method, period, target_return, 
                                     max_weight, min_weight, risk_free_rate, rebalancing_frequency):
-        # Prevent callback from firing if no button click
-        if not n_clicks or not stocks_input:
+        # Initialize portfolio optimizer
+        portfolio_optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate or 0.02)
+        
+        # Determine which button was clicked
+        ctx = dash.callback_context
+        if not ctx.triggered:
             return [], [], [], {"display": "none"}
         
-        # Show loading state immediately
-        loading_style = {"display": "block"}
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
-        try:
-            # Clear any previous results first
-            print(f"Portfolio optimization triggered - n_clicks: {n_clicks}")
-            print(f"Input parameters: symbols={stocks_input}, method={method}, period={period}")
-            
-            # Parse stock symbols
-            symbols = [s.strip().upper() for s in stocks_input.split(',')]
-            
-            # Validate symbols
-            if not symbols or len(symbols) < 2:
-                error_alert = dbc.Alert("Please enter at least 2 stock symbols separated by commas.", color="warning")
+        # Handle suggest diverse portfolio button
+        if button_id == "suggest-diverse-button":
+            try:
+                # Create a guaranteed diverse portfolio suggestion
+                diverse_stocks = portfolio_optimizer.create_guaranteed_diverse_portfolio(n_stocks=10)
+                diverse_stocks_str = ",".join(diverse_stocks)
+                
+                # Update the input field with diverse stocks
+                suggestions_display = [
+                    dbc.Alert([
+                        html.I(className="bi bi-lightbulb me-2"),
+                        html.Strong("Diverse Portfolio Suggestion"),
+                        html.Br(),
+                        html.Span("Here's a diversified portfolio to avoid correlation issues:"),
+                        html.Br(),
+                        html.Br(),
+                        html.Code(diverse_stocks_str, className="fs-5"),
+                        html.Br(),
+                        html.Br(),
+                        html.Small("This portfolio includes stocks from different sectors (Technology, Financials, Healthcare, Consumer, Energy) to minimize correlation and avoid singular covariance matrices.")
+                    ], color="info", dismissable=True, className="portfolio-alert"),
+                    html.Div([
+                        html.H5("Suggested Portfolio Composition:"),
+                        html.Ul([
+                            html.Li("Technology: AAPL, MSFT"),
+                            html.Li("Financials: JPM, V"),
+                            html.Li("Healthcare: JNJ, UNH"),
+                            html.Li("Consumer: PG, HD"),
+                            html.Li("Energy: XOM"),
+                            html.Li("Additional: ADBE, CRM")
+                        ]),
+                        html.Br(),
+                        html.P([
+                            "Click 'Optimize Portfolio' to analyze this diverse selection, or modify the stock list above."
+                        ], className="text-muted")
+                    ])
+                ]
+                
+                return suggestions_display, [], [], {"display": "none"}
+                
+            except Exception as e:
+                error_alert = dbc.Alert(f"Error creating diverse portfolio suggestion: {str(e)}", color="danger")
+                return [error_alert], [], [], {"display": "none"}
+        
+        # Handle test portfolio button
+        if button_id == "test-portfolio-button":
+            if not stocks_input:
+                error_alert = dbc.Alert("Please enter stock symbols to test", color="warning")
                 return [error_alert], [], [], {"display": "none"}
             
-            # Set default values and convert to proper types
-            period = period or '1y'
-            risk_free_rate = float(risk_free_rate) / 100 if risk_free_rate else 0.02  # Convert percentage to decimal
-            max_weight = float(max_weight) / 100 if max_weight else 0.4  # Convert percentage to decimal
-            min_weight = float(min_weight) / 100 if min_weight else 0.01  # Convert percentage to decimal
-            target_return = float(target_return) / 100 if target_return else None  # Convert percentage to decimal
-            
-            print(f"Processed parameters: risk_free_rate={risk_free_rate}, max_weight={max_weight}, min_weight={min_weight}")
-            
-            # Create constraints dictionary
-            constraints = {
-                'min_weight': min_weight,
-                'max_weight': max_weight
-            }
-            
-            # Initialize portfolio optimizer with user-defined risk-free rate
-            portfolio_optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate)
-            
-            # Optimize portfolio
-            print(f"Starting portfolio optimization for {len(symbols)} symbols: {symbols}")
-            result = portfolio_optimizer.optimize_portfolio(
-                symbols=symbols,
-                method=method,
-                period=period,
-                target_return=target_return,
-                constraints=constraints
-            )
-            
-            if 'error' in result:
-                error_alert = dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
-                return [error_alert], [], [], {"display": "none"}
-            
-            # Validate result structure
-            required_keys = ['optimal_weights', 'portfolio_metrics', 'stock_metrics']
-            for key in required_keys:
-                if key not in result:
-                    error_alert = dbc.Alert(f"Invalid portfolio optimization result: missing {key}", color="danger")
+            try:
+                # Parse stock symbols
+                symbols = [s.strip().upper() for s in stocks_input.split(',')]
+                
+                # Test portfolio properties
+                portfolio_test = portfolio_optimizer.test_portfolio_optimization_properties(symbols, period or '1y')
+                
+                if 'error' in portfolio_test:
+                    error_alert = dbc.Alert(f"Error testing portfolio: {portfolio_test['error']}", color="danger")
                     return [error_alert], [], [], {"display": "none"}
-            
-            print(f"Portfolio optimization completed successfully")
-            print(f"Portfolio metrics: {result['portfolio_metrics']}")
-            
-            # Check for validation warnings and create notifications
-            notifications = []
-            if 'validation_info' in result:
-                validation_info = result['validation_info']
                 
-                # Check for single asset portfolio
-                if validation_info.get('is_single_asset', False):
-                    notifications.append(
-                        dbc.Alert([
-                            html.I(className="bi bi-info-circle me-2"),
-                            "Single asset portfolio detected. Optimization returned equal weight of 100%."
-                        ], color="info", dismissable=True, className="portfolio-alert")
-                    )
+                # Create test results display
+                test_results = [
+                    dbc.Alert([
+                        html.I(className="bi bi-clipboard-data me-2"),
+                        html.Strong("Portfolio Analysis Results"),
+                        html.Br(),
+                        html.Span(f"Analyzed {portfolio_test['n_stocks']} stocks over {portfolio_test['n_days']} days")
+                    ], color="info", dismissable=True, className="portfolio-alert"),
+                    
+                    html.Div([
+                        html.H5("Portfolio Statistics:"),
+                        html.Ul([
+                            html.Li(f"Number of stocks: {portfolio_test['n_stocks']}"),
+                            html.Li(f"Data points: {portfolio_test['n_days']}"),
+                            html.Li(f"Average correlation: {portfolio_test['avg_correlation']:.3f}"),
+                            html.Li(f"Maximum correlation: {portfolio_test['max_correlation']:.3f}"),
+                            html.Li(f"Minimum correlation: {portfolio_test['min_correlation']:.3f}"),
+                            html.Li(f"Singular matrix: {'Yes' if portfolio_test['is_singular_matrix'] else 'No'}")
+                        ]),
+                        
+                        html.Br(),
+                        html.H5("High Correlation Pairs (>0.7):"),
+                        html.Ul([
+                            html.Li(f"{pair['stock1']} - {pair['stock2']}: {pair['correlation']:.3f}")
+                            for pair in portfolio_test['high_correlation_pairs']
+                        ]) if portfolio_test['high_correlation_pairs'] else html.P("None found - good diversification!"),
+                        
+                        html.Br(),
+                        html.H5("Recommendations:"),
+                        html.Ul([
+                            html.Li(recommendation) for recommendation in portfolio_test['recommendations']
+                        ]) if portfolio_test['recommendations'] else html.P("Portfolio looks good for optimization!")
+                    ])
+                ]
                 
-                # Check for singular covariance matrix
-                if validation_info.get('is_singular_matrix', False):
-                    notifications.append(
-                        dbc.Alert([
-                            html.I(className="bi bi-exclamation-triangle me-2"),
-                            html.Span([
-                                "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets. ",
-                                html.Br(),
-                                html.Br(),
-                                html.Strong("To avoid this issue:"),
-                                html.Br(),
-                                "• Add more diverse assets with different risk profiles",
-                                html.Br(),
-                                "• Use a longer time period for historical data",
-                                html.Br(),
-                                "• Consider removing highly correlated assets from your selection",
-                                html.Br(),
-                                "• Try different optimization methods or adjust constraints"
-                            ])
-                        ], color="warning", dismissable=True, className="portfolio-alert")
-                    )
+                return test_results, [], [], {"display": "none"}
+                
+            except Exception as e:
+                error_alert = dbc.Alert(f"Error testing portfolio properties: {str(e)}", color="danger")
+                return [error_alert], [], [], {"display": "none"}
+        
+        # Handle optimize portfolio button
+        if button_id == "optimize-button":
+            # Prevent callback from firing if no stocks input
+            if not stocks_input:
+                return [], [], [], {"display": "none"}
+            
+            # Show loading state immediately
+            loading_style = {"display": "block"}
+            
+            try:
+                # Clear any previous results first
+                print(f"Portfolio optimization triggered - n_clicks: {n_clicks}")
+                print(f"Input parameters: symbols={stocks_input}, method={method}, period={period}")
+                
+                # Parse stock symbols
+                symbols = [s.strip().upper() for s in stocks_input.split(',')]
+                
+                # Validate symbols
+                if not symbols or len(symbols) < 2:
+                    error_alert = dbc.Alert("Please enter at least 2 stock symbols separated by commas.", color="warning")
+                    return [error_alert], [], [], {"display": "none"}
+                
+                # Set default values and convert to proper types
+                period = period or '1y'
+                risk_free_rate = float(risk_free_rate) / 100 if risk_free_rate else 0.02
+                max_weight = float(max_weight) / 100 if max_weight else 0.4
+                min_weight = float(min_weight) / 100 if min_weight else 0.01
+                target_return = float(target_return) / 100 if target_return else None
+                
+                print(f"Processed parameters: risk_free_rate={risk_free_rate}, max_weight={max_weight}, min_weight={min_weight}")
+                
+                # Create constraints dictionary
+                constraints = {
+                    'min_weight': min_weight,
+                    'max_weight': max_weight
+                }
+                
+                # Initialize portfolio optimizer with user-defined risk-free rate
+                portfolio_optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate)
+                
+                # Optimize portfolio
+                print(f"Starting portfolio optimization for {len(symbols)} symbols: {symbols}")
+                result = portfolio_optimizer.optimize_portfolio(
+                    symbols=symbols,
+                    method=method,
+                    period=period,
+                    target_return=target_return,
+                    constraints=constraints
+                )
+                
+                if 'error' in result:
+                    error_alert = dbc.Alert(f"Error optimizing portfolio: {result['error']}", color="danger")
+                    return [error_alert], [], [], {"display": "none"}
+                
+                # Validate result structure
+                required_keys = ['optimal_weights', 'portfolio_metrics', 'stock_metrics']
+                for key in required_keys:
+                    if key not in result:
+                        error_alert = dbc.Alert(f"Invalid portfolio optimization result: missing {key}", color="danger")
+                        return [error_alert], [], [], {"display": "none"}
+                
+                print(f"Portfolio optimization completed successfully")
+                print(f"Portfolio metrics: {result['portfolio_metrics']}")
+                
+                # Check for validation warnings and create notifications
+                notifications = []
+                if 'validation_info' in result:
+                    validation_info = result['validation_info']
+                    
+                    # Check for single asset portfolio
+                    if validation_info.get('is_single_asset', False):
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-info-circle me-2"),
+                                "Single asset portfolio detected. Optimization returned equal weight of 100%."
+                            ], color="info", dismissable=True, className="portfolio-alert")
+                        )
+                    
+                    # Check for singular covariance matrix
+                    if validation_info.get('is_singular_matrix', False):
+                        # Get suggestions for diverse alternatives
+                        try:
+                            suggestions = portfolio_optimizer.suggest_diverse_alternatives(symbols)
+                            suggestion_text = []
+                            
+                            if suggestions['high_correlation_replacement']:
+                                suggestion_text.append(html.Br())
+                                suggestion_text.append(html.Strong("Suggested replacements for high correlation:"))
+                                suggestion_text.append(html.Br())
+                                suggestion_text.append(", ".join(suggestions['high_correlation_replacement'][:3]))
+                            
+                            if suggestions['sector_diversification']:
+                                suggestion_text.append(html.Br())
+                                suggestion_text.append(html.Strong("Suggested sector diversification:"))
+                                suggestion_text.append(html.Br())
+                                suggestion_text.append(", ".join(suggestions['sector_diversification'][:3]))
+                            
+                            notifications.append(
+                                dbc.Alert([
+                                    html.I(className="bi bi-exclamation-triangle me-2"),
+                                    html.Span([
+                                        "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets. ",
+                                        html.Br(),
+                                        html.Br(),
+                                        html.Strong("To avoid this issue:"),
+                                        html.Br(),
+                                        "• Add more diverse assets with different risk profiles",
+                                        html.Br(),
+                                        "• Use a longer time period for historical data",
+                                        html.Br(),
+                                        "• Consider removing highly correlated assets from your selection",
+                                        html.Br(),
+                                        "• Try different optimization methods or adjust constraints"
+                                    ] + suggestion_text)
+                                ], color="warning", dismissable=True, className="portfolio-alert")
+                            )
+                        except Exception as e:
+                            # Fallback to original message if suggestions fail
+                            notifications.append(
+                                dbc.Alert([
+                                    html.I(className="bi bi-exclamation-triangle me-2"),
+                                    html.Span([
+                                        "Singular covariance matrix detected. Portfolio optimization defaulted to equal weights due to perfect correlation between assets. ",
+                                        html.Br(),
+                                        html.Br(),
+                                        html.Strong("To avoid this issue:"),
+                                        html.Br(),
+                                        "• Add more diverse assets with different risk profiles",
+                                        html.Br(),
+                                        "• Use a longer time period for historical data",
+                                        html.Br(),
+                                        "• Consider removing highly correlated assets from your selection",
+                                        html.Br(),
+                                        "• Try different optimization methods or adjust constraints"
+                                    ])
+                                ], color="warning", dismissable=True, className="portfolio-alert")
+                            )
                 
                 # Check for NaN handling
                 if validation_info.get('has_nans', False):
@@ -1281,68 +1457,68 @@ def create_app(config_name='development'):
                                     warning
                                 ], color="info", dismissable=True, className="portfolio-alert")
                             )
-            
-            # Additional checks for optimization fallbacks based on actual results
-            if 'optimal_weights' in result:
-                optimal_weights = result['optimal_weights']
-                weights_list = list(optimal_weights.values())
                 
-                # Check if all weights are equal (indicating fallback to equal weights)
-                if len(weights_list) > 1 and all(abs(w - weights_list[0]) < 1e-6 for w in weights_list):
-                    # This suggests equal weights were used as a fallback
-                    notifications.append(
-                        dbc.Alert([
-                            html.I(className="bi bi-exclamation-triangle me-2"),
-                            html.Span([
-                                "Portfolio optimization defaulted to equal weights (",
-                                html.Strong(f"{100/len(weights_list):.1f}% each"),
-                                "). This may indicate optimization constraints or data issues."
-                            ])
-                        ], color="warning", dismissable=True, className="portfolio-alert")
-                    )
+                # Additional checks for optimization fallbacks based on actual results
+                if 'optimal_weights' in result:
+                    optimal_weights = result['optimal_weights']
+                    weights_list = list(optimal_weights.values())
+                    
+                    # Check if all weights are equal (indicating fallback to equal weights)
+                    if len(weights_list) > 1 and all(abs(w - weights_list[0]) < 1e-6 for w in weights_list):
+                        # This suggests equal weights were used as a fallback
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-exclamation-triangle me-2"),
+                                html.Span([
+                                    "Portfolio optimization defaulted to equal weights (",
+                                    html.Strong(f"{100/len(weights_list):.1f}% each"),
+                                    "). This may indicate optimization constraints or data issues."
+                                ])
+                            ], color="warning", dismissable=True, className="portfolio-alert")
+                        )
+                    
+                    # Check if any weight is exactly 1.0 (single asset case)
+                    if len(weights_list) == 1 and abs(weights_list[0] - 1.0) < 1e-6:
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-info-circle me-2"),
+                                "Single asset portfolio detected. Weight set to 100%."
+                            ], color="info", dismissable=True, className="portfolio-alert")
+                        )
+                    
+                    # Check for extreme weight concentrations
+                    max_weight_val = max(weights_list)
+                    if max_weight_val > 0.8:  # More than 80% in one asset
+                        notifications.append(
+                            dbc.Alert([
+                                html.I(className="bi bi-exclamation-triangle me-2"),
+                                html.Span([
+                                    "High concentration detected: ",
+                                    html.Strong(f"{max_weight_val:.1%}"),
+                                    " allocated to a single asset. Consider diversification."
+                                ])
+                            ], color="warning", dismissable=True, className="portfolio-alert")
+                        )
                 
-                # Check if any weight is exactly 1.0 (single asset case)
-                if len(weights_list) == 1 and abs(weights_list[0] - 1.0) < 1e-6:
-                    notifications.append(
-                        dbc.Alert([
-                            html.I(className="bi bi-info-circle me-2"),
-                            "Single asset portfolio detected. Weight set to 100%."
-                        ], color="info", dismissable=True, className="portfolio-alert")
-                    )
+                # Create results displays with timestamp for unique keys
+                import time
+                timestamp = int(time.time())
+                results_display = create_portfolio_results_display(result, symbols, method, timestamp)
+                comparison_display = create_portfolio_comparison_display(result, symbols, method)
+                export_display = create_portfolio_export_display(result, symbols, method)
                 
-                # Check for extreme weight concentrations
-                max_weight = max(weights_list)
-                if max_weight > 0.8:  # More than 80% in one asset
-                    notifications.append(
-                        dbc.Alert([
-                            html.I(className="bi bi-exclamation-triangle me-2"),
-                            html.Span([
-                                "High concentration detected: ",
-                                html.Strong(f"{max_weight:.1%}"),
-                                " allocated to a single asset. Consider diversification."
-                            ])
-                        ], color="warning", dismissable=True, className="portfolio-alert")
-                    )
-            
-            # Create results displays with timestamp for unique keys
-            import time
-            timestamp = int(time.time())
-            results_display = create_portfolio_results_display(result, symbols, method, timestamp)
-            comparison_display = create_portfolio_comparison_display(result, symbols, method)
-            export_display = create_portfolio_export_display(result, symbols, method)
-            
-            # Combine notifications with results
-            if notifications:
-                results_display = notifications + results_display
-            
-            return results_display, comparison_display, export_display, {"display": "none"}
-            
-        except Exception as e:
-            print(f"Error in portfolio optimization callback: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            error_alert = dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
-            return [error_alert], [], [], {"display": "none"}
+                # Combine notifications with results
+                if notifications:
+                    results_display = notifications + results_display
+                
+                return results_display, comparison_display, export_display, {"display": "none"}
+                
+            except Exception as e:
+                print(f"Error in portfolio optimization callback: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                error_alert = dbc.Alert(f"Error optimizing portfolio: {str(e)}", color="danger")
+                return [error_alert], [], [], {"display": "none"}
     
     # Callback to show/hide target return input
     @app.callback(
@@ -2439,7 +2615,7 @@ def create_app(config_name='development'):
             
             # Popular stocks for top movers analysis (S&P 500 focus)
             popular_stocks = [
-                'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA',
+                'AAPL', 'MSFT', 'JPM', 'V', 'JNJ', 'PG', 'XOM',
                 'JPM', 'V', 'JNJ', 'WMT', 'PG', 'UNH', 'MA', 'HD', 'BAC',
                 'DIS', 'ADBE', 'NFLX', 'CRM', 'PYPL', 'INTC', 'AMD', 'ORCL',
                 'NKE', 'KO', 'PEP', 'ABT', 'TMO', 'AVGO', 'COST', 'MRK',

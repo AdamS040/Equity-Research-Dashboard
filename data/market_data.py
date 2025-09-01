@@ -273,7 +273,7 @@ class MarketDataFetcher:
         """
         # Extended list of popular stocks for comprehensive analysis
         popular_stocks = [
-            'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA',
+            'AAPL', 'MSFT', 'JPM', 'V', 'JNJ', 'PG', 'XOM',
             'JPM', 'V', 'JNJ', 'WMT', 'PG', 'UNH', 'MA', 'HD', 'BAC',
             'DIS', 'ADBE', 'NFLX', 'CRM', 'PYPL', 'INTC', 'AMD', 'ORCL',
             'NKE', 'KO', 'PEP', 'ABT', 'TMO', 'AVGO', 'COST', 'MRK',

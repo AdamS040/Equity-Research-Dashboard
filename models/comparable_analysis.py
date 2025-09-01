@@ -32,7 +32,7 @@ class ComparableAnalysis:
         try:
             # Default peer groups by sector
             sector_peers = {
-                'Technology': ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'NVDA', 'ADBE', 'CRM', 'NFLX', 'TSLA'],
+                'Technology': ['AAPL', 'MSFT', 'ADBE', 'CRM', 'ORCL', 'INTU', 'ADP', 'CTSH', 'TXN', 'AVGO'],
                 'Healthcare': ['JNJ', 'PFE', 'UNH', 'ABBV', 'TMO', 'DHR', 'MRK', 'ABT', 'BMY', 'AMGN'],
                 'Financials': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'V'],
                 'Consumer Discretionary': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'LOW', 'TJX', 'BKNG', 'MAR'],

@@ -751,7 +751,7 @@ class DataFetcher:
             
             # Popular stocks for analysis
             popular_stocks = [
-                'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'V', 'JNJ',
+                'AAPL', 'MSFT', 'JPM', 'V', 'JNJ', 'PG', 'XOM', 'KO', 'HD', 'UNH',
                 'PG', 'UNH', 'HD', 'MA', 'PYPL', 'ADBE', 'CRM', 'NFLX', 'CMCSA', 'PFE'
             ]
             

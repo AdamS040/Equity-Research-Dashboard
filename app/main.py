@@ -56,6 +56,10 @@ def create_app(config_name='development'):
     app.server.config['SECRET_KEY'] = config_class.SECRET_KEY
     app.server.config['DEBUG'] = config_class.DEBUG
     
+    # Configure Flask template directory to point to root templates folder
+    import os
+    app.server.template_folder = os.path.abspath('templates')
+    
     # Initialize authentication manager
     auth_manager = AuthManager(app.server)
     init_auth_routes(app.server, auth_manager)

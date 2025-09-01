@@ -878,15 +878,28 @@ def create_app(config_name='development'):
                     ticker = yf.Ticker(symbol)
                     ticker._session = session
                     
-                    # Use a shorter period to reduce data load
-                    hist = ticker.history(period='2d', interval='1d')
+                    # Use a longer period to ensure we have enough data
+                    hist = ticker.history(period='5d', interval='1d')
                     
                     if hist.empty or len(hist) < 2:
                         # Try fallback symbol
                         symbol = config['fallback']
                         ticker = yf.Ticker(symbol)
                         ticker._session = session
-                        hist = ticker.history(period='2d', interval='1d')
+                        hist = ticker.history(period='5d', interval='1d')
+                        
+                        # If using treasury ETF fallback, try additional alternatives
+                        if hist.empty and config['name'] == '10Y Treasury':
+                            for alt_symbol in ['TLT', 'GOVT', '^TNX']:
+                                try:
+                                    ticker = yf.Ticker(alt_symbol)
+                                    ticker._session = session
+                                    hist = ticker.history(period='5d', interval='1d')
+                                    if not hist.empty:
+                                        symbol = alt_symbol
+                                        break
+                                except:
+                                    continue
                     
                     if not hist.empty and len(hist) >= 2:
                         current = hist['Close'].iloc[-1]
@@ -928,7 +941,7 @@ def create_app(config_name='development'):
             # Create market performance chart with available data
             fig = go.Figure()
             
-            # Try to get chart data for market indices
+            # Try to get chart data for market indices with enhanced visualization
             chart_data_available = False
             chart_symbols = [('^GSPC', 'S&P 500'), ('^IXIC', 'NASDAQ')]
             
@@ -936,7 +949,8 @@ def create_app(config_name='development'):
                 try:
                     ticker = yf.Ticker(symbol)
                     ticker._session = session
-                    hist = ticker.history(period='5d', interval='1d')
+                    # Get more data for better technical analysis
+                    hist = ticker.history(period='1mo', interval='1d')
                     
                     if hist.empty:
                         # Try fallback
@@ -945,18 +959,68 @@ def create_app(config_name='development'):
                         elif symbol == '^IXIC':
                             ticker = yf.Ticker('QQQ')
                         ticker._session = session
-                        hist = ticker.history(period='5d', interval='1d')
+                        hist = ticker.history(period='1mo', interval='1d')
                     
-                    if not hist.empty:
-                        fig.add_trace(go.Scatter(
-                            x=hist.index,
-                            y=hist['Close'],
-                            mode='lines',
-                            name=name,
-                            line=dict(width=2)
-                        ))
-                        chart_data_available = True
-                        print(f"Successfully created chart for {name}")
+                    if not hist.empty and len(hist) >= 20:
+                        # Create candlestick chart for main index
+                        if not chart_data_available:  # Only add candlestick for first index
+                            fig.add_trace(go.Candlestick(
+                                x=hist.index,
+                                open=hist['Open'],
+                                high=hist['High'],
+                                low=hist['Low'],
+                                close=hist['Close'],
+                                name=f'{name} (OHLC)',
+                                increasing_line_color='#26A69A',
+                                decreasing_line_color='#EF5350'
+                            ))
+                            
+                            # Add volume as bars
+                            fig.add_trace(go.Bar(
+                                x=hist.index,
+                                y=hist['Volume'],
+                                name='Volume',
+                                yaxis='y2',
+                                marker_color='rgba(100, 100, 100, 0.3)',
+                                opacity=0.7
+                            ))
+                            
+                            # Add moving averages
+                            ma20 = hist['Close'].rolling(window=20).mean()
+                            ma50 = hist['Close'].rolling(window=50).mean()
+                            
+                            fig.add_trace(go.Scatter(
+                                x=hist.index,
+                                y=ma20,
+                                mode='lines',
+                                name='MA20',
+                                line=dict(color='orange', width=2),
+                                opacity=0.8
+                            ))
+                            
+                            if len(hist) >= 50:  # Only add MA50 if we have enough data
+                                fig.add_trace(go.Scatter(
+                                    x=hist.index,
+                                    y=ma50,
+                                    mode='lines',
+                                    name='MA50',
+                                    line=dict(color='blue', width=2),
+                                    opacity=0.8
+                                ))
+                            
+                            chart_data_available = True
+                            print(f"Successfully created enhanced chart for {name}")
+                        else:
+                            # Add line chart for second index
+                            fig.add_trace(go.Scatter(
+                                x=hist.index,
+                                y=hist['Close'],
+                                mode='lines',
+                                name=f'{name} (Close)',
+                                line=dict(width=2, dash='dash'),
+                                opacity=0.8
+                            ))
+                            
                 except Exception as e:
                     print(f"Error creating chart for {name}: {e}")
             
@@ -969,13 +1033,38 @@ def create_app(config_name='development'):
                     font=dict(size=16, color="gray")
                 )
             
-            fig.update_layout(
-                title="Market Performance (5 Days)",
-                xaxis_title="Date",
-                yaxis_title="Index Value",
-                template="plotly_white",
-                height=400
-            )
+            # Enhanced layout with dual y-axes for price and volume
+            if chart_data_available:
+                fig.update_layout(
+                    title="Market Performance (1 Month) - Enhanced View",
+                    xaxis_title="Date",
+                    yaxis_title="Index Value",
+                    template="plotly_white",
+                    height=500,
+                    yaxis2=dict(
+                        title="Volume",
+                        overlaying='y',
+                        side='right',
+                        showgrid=False,
+                        rangemode='tozero'
+                    ),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    ),
+                    margin=dict(l=50, r=80, t=100, b=80)
+                )
+            else:
+                fig.update_layout(
+                    title="Market Performance (1 Month)",
+                    xaxis_title="Date",
+                    yaxis_title="Index Value",
+                    template="plotly_white",
+                    height=400
+                )
             
             results.append(fig)
             return results

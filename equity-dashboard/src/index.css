@@ -1,19 +1,177 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Design System CSS Custom Properties */
+    --color-primary-50: #eff6ff;
+    --color-primary-100: #dbeafe;
+    --color-primary-200: #bfdbfe;
+    --color-primary-300: #93c5fd;
+    --color-primary-400: #60a5fa;
+    --color-primary-500: #3b82f6;
+    --color-primary-600: #2563eb;
+    --color-primary-700: #1d4ed8;
+    --color-primary-800: #1e40af;
+    --color-primary-900: #1e3a8a;
+    --color-primary-950: #172554;
+    
+    --color-secondary-50: #f8fafc;
+    --color-secondary-100: #f1f5f9;
+    --color-secondary-200: #e2e8f0;
+    --color-secondary-300: #cbd5e1;
+    --color-secondary-400: #94a3b8;
+    --color-secondary-500: #64748b;
+    --color-secondary-600: #475569;
+    --color-secondary-700: #334155;
+    --color-secondary-800: #1e293b;
+    --color-secondary-900: #0f172a;
+    --color-secondary-950: #020617;
+    
+    --color-success-50: #ecfdf5;
+    --color-success-100: #d1fae5;
+    --color-success-200: #a7f3d0;
+    --color-success-300: #6ee7b7;
+    --color-success-400: #34d399;
+    --color-success-500: #10b981;
+    --color-success-600: #059669;
+    --color-success-700: #047857;
+    --color-success-800: #065f46;
+    --color-success-900: #064e3b;
+    --color-success-950: #022c22;
+    
+    --color-warning-50: #fffbeb;
+    --color-warning-100: #fef3c7;
+    --color-warning-200: #fde68a;
+    --color-warning-300: #fcd34d;
+    --color-warning-400: #fbbf24;
+    --color-warning-500: #f59e0b;
+    --color-warning-600: #d97706;
+    --color-warning-700: #b45309;
+    --color-warning-800: #92400e;
+    --color-warning-900: #78350f;
+    --color-warning-950: #451a03;
+    
+    --color-danger-50: #fef2f2;
+    --color-danger-100: #fee2e2;
+    --color-danger-200: #fecaca;
+    --color-danger-300: #fca5a5;
+    --color-danger-400: #f87171;
+    --color-danger-500: #ef4444;
+    --color-danger-600: #dc2626;
+    --color-danger-700: #b91c1c;
+    --color-danger-800: #991b1b;
+    --color-danger-900: #7f1d1d;
+    --color-danger-950: #450a0a;
+    
+    --color-neutral-50: #f9fafb;
+    --color-neutral-100: #f3f4f6;
+    --color-neutral-200: #e5e7eb;
+    --color-neutral-300: #d1d5db;
+    --color-neutral-400: #9ca3af;
+    --color-neutral-500: #6b7280;
+    --color-neutral-600: #4b5563;
+    --color-neutral-700: #374151;
+    --color-neutral-800: #1f2937;
+    --color-neutral-900: #111827;
+    --color-neutral-950: #030712;
+    
+    --color-financial-positive: #10b981;
+    --color-financial-negative: #ef4444;
+    --color-financial-neutral: #6b7280;
+    --color-financial-warning: #f59e0b;
+    
+    /* Spacing scale (4px base unit) */
+    --spacing-1: 0.25rem;   /* 4px */
+    --spacing-2: 0.5rem;    /* 8px */
+    --spacing-3: 0.75rem;   /* 12px */
+    --spacing-4: 1rem;      /* 16px */
+    --spacing-5: 1.25rem;   /* 20px */
+    --spacing-6: 1.5rem;    /* 24px */
+    --spacing-8: 2rem;      /* 32px */
+    --spacing-10: 2.5rem;   /* 40px */
+    --spacing-12: 3rem;     /* 48px */
+    --spacing-16: 4rem;     /* 64px */
+    --spacing-20: 5rem;     /* 80px */
+    --spacing-24: 6rem;     /* 96px */
+    
+    /* Border radius */
+    --radius-sm: 0.125rem;   /* 2px */
+    --radius-md: 0.375rem;   /* 6px */
+    --radius-lg: 0.5rem;     /* 8px */
+    --radius-xl: 0.75rem;    /* 12px */
+    --radius-2xl: 1rem;      /* 16px */
+    --radius-full: 9999px;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* Z-index scale */
+    --z-modal: 1000;
+    --z-popover: 1010;
+    --z-tooltip: 1020;
+    --z-toast: 1030;
+  }
+  
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
   
   body {
-    @apply bg-neutral-50 text-neutral-900;
+    @apply bg-neutral-50 text-neutral-900 antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  
+  /* Financial data styling */
+  .financial-positive {
+    color: var(--color-financial-positive);
+  }
+  
+  .financial-negative {
+    color: var(--color-financial-negative);
+  }
+  
+  .financial-neutral {
+    color: var(--color-financial-neutral);
+  }
+  
+  .financial-warning {
+    color: var(--color-financial-warning);
+  }
+  
+  /* Focus styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-neutral-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400;
   }
 }
 
 @layer components {
+  /* Legacy component classes for backward compatibility */
   .btn-primary {
     @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
   }
@@ -45,4 +203,126 @@
   .label {
     @apply block text-sm font-medium text-neutral-700 mb-1;
   }
+  
+  /* Design System Utility Classes */
+  
+  /* Text color utilities */
+  .text-primary { @apply text-primary-600; }
+  .text-secondary { @apply text-secondary-600; }
+  .text-success { @apply text-success-600; }
+  .text-warning { @apply text-warning-600; }
+  .text-danger { @apply text-danger-600; }
+  .text-neutral { @apply text-neutral-600; }
+  
+  /* Background color utilities */
+  .bg-primary { @apply bg-primary-600; }
+  .bg-secondary { @apply bg-secondary-600; }
+  .bg-success { @apply bg-success-600; }
+  .bg-warning { @apply bg-warning-600; }
+  .bg-danger { @apply bg-danger-600; }
+  .bg-neutral { @apply bg-neutral-600; }
+  
+  /* Border color utilities */
+  .border-primary { @apply border-primary-600; }
+  .border-secondary { @apply border-secondary-600; }
+  .border-success { @apply border-success-600; }
+  .border-warning { @apply border-warning-600; }
+  .border-danger { @apply border-danger-600; }
+  .border-neutral { @apply border-neutral-600; }
+  
+  /* Hover state utilities */
+  .hover-primary { @apply hover:bg-primary-700 hover:text-white; }
+  .hover-secondary { @apply hover:bg-secondary-700 hover:text-white; }
+  .hover-success { @apply hover:bg-success-700 hover:text-white; }
+  .hover-warning { @apply hover:bg-warning-700 hover:text-white; }
+  .hover-danger { @apply hover:bg-danger-700 hover:text-white; }
+  .hover-neutral { @apply hover:bg-neutral-700 hover:text-white; }
+  
+  /* Focus state utilities */
+  .focus-primary { @apply focus:ring-primary-500 focus:border-primary-500; }
+  .focus-secondary { @apply focus:ring-secondary-500 focus:border-secondary-500; }
+  .focus-success { @apply focus:ring-success-500 focus:border-success-500; }
+  .focus-warning { @apply focus:ring-warning-500 focus:border-warning-500; }
+  .focus-danger { @apply focus:ring-danger-500 focus:border-danger-500; }
+  .focus-neutral { @apply focus:ring-neutral-500 focus:border-neutral-500; }
+  
+  /* Spacing utilities */
+  .space-y-1 > * + * { margin-top: var(--spacing-1); }
+  .space-y-2 > * + * { margin-top: var(--spacing-2); }
+  .space-y-3 > * + * { margin-top: var(--spacing-3); }
+  .space-y-4 > * + * { margin-top: var(--spacing-4); }
+  .space-y-5 > * + * { margin-top: var(--spacing-5); }
+  .space-y-6 > * + * { margin-top: var(--spacing-6); }
+  .space-y-8 > * + * { margin-top: var(--spacing-8); }
+  
+  .space-x-1 > * + * { margin-left: var(--spacing-1); }
+  .space-x-2 > * + * { margin-left: var(--spacing-2); }
+  .space-x-3 > * + * { margin-left: var(--spacing-3); }
+  .space-x-4 > * + * { margin-left: var(--spacing-4); }
+  .space-x-5 > * + * { margin-left: var(--spacing-5); }
+  .space-x-6 > * + * { margin-left: var(--spacing-6); }
+  .space-x-8 > * + * { margin-left: var(--spacing-8); }
+  
+  /* Gap utilities */
+  .gap-1 { gap: var(--spacing-1); }
+  .gap-2 { gap: var(--spacing-2); }
+  .gap-3 { gap: var(--spacing-3); }
+  .gap-4 { gap: var(--spacing-4); }
+  .gap-5 { gap: var(--spacing-5); }
+  .gap-6 { gap: var(--spacing-6); }
+  .gap-8 { gap: var(--spacing-8); }
+  
+  /* Animation utilities */
+  .animate-fade-in { @apply animate-fade-in; }
+  .animate-slide-up { @apply animate-slide-up; }
+  .animate-slide-down { @apply animate-slide-down; }
+  .animate-scale-in { @apply animate-scale-in; }
+  
+  /* Transition utilities */
+  .transition-colors { @apply transition-colors duration-200; }
+  .transition-transform { @apply transition-transform duration-200; }
+  .transition-all { @apply transition-all duration-200; }
+}
+
+@layer utilities {
+  /* Custom utilities for the design system */
+  
+  /* Text truncation */
+  .text-truncate {
+    @apply overflow-hidden whitespace-nowrap text-ellipsis;
+  }
+  
+  /* Aspect ratios */
+  .aspect-square { aspect-ratio: 1 / 1; }
+  .aspect-video { aspect-ratio: 16 / 9; }
+  .aspect-4-3 { aspect-ratio: 4 / 3; }
+  .aspect-3-2 { aspect-ratio: 3 / 2; }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20;
+  }
+  
+  /* Gradient backgrounds */
+  .gradient-primary {
+    background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  }
+  
+  .gradient-success {
+    background: linear-gradient(135deg, var(--color-success-500), var(--color-success-700));
+  }
+  
+  .gradient-warning {
+    background: linear-gradient(135deg, var(--color-warning-500), var(--color-warning-700));
+  }
+  
+  .gradient-danger {
+    background: linear-gradient(135deg, var(--color-danger-500), var(--color-danger-700));
+  }
+  
+  /* Financial data styling */
+  .financial-positive-bg { @apply bg-success-50 text-success-700; }
+  .financial-negative-bg { @apply bg-danger-50 text-danger-700; }
+  .financial-neutral-bg { @apply bg-neutral-50 text-neutral-700; }
+  .financial-warning-bg { @apply bg-warning-50 text-warning-700; }
 }

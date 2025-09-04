@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
+import { DesignSystemDemo } from './components/ui/DesignSystemDemo'
 
-// Simple test component
+// Simple test component for other routes
 function TestComponent() {
   return (
     <div className="p-8">
@@ -25,9 +26,9 @@ function TestComponent() {
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <Routes>
-        <Route path="/" element={<TestComponent />} />
+        <Route path="/" element={<DesignSystemDemo />} />
         <Route path="/portfolio" element={<TestComponent />} />
         <Route path="/research" element={<TestComponent />} />
         <Route path="/analysis" element={<TestComponent />} />

@@ -11,7 +11,7 @@ import {
   CogIcon,
   DocumentTextIcon,
   NewspaperIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   BuildingOfficeIcon
 } from '@heroicons/react/24/outline'
 import { useSearchParams } from 'react-router-dom'
@@ -39,7 +39,7 @@ const TABS: Tab[] = [
   {
     id: 'technical',
     label: 'Technical',
-    icon: TrendingUpIcon,
+    icon: ArrowTrendingUpIcon,
     description: 'Technical indicators and signals'
   },
   {
@@ -242,7 +242,7 @@ export const TabContent: React.FC<TabContentProps> = ({ symbol, activeTab }) => 
       case 'technical':
         return (
           <div className="text-center py-12">
-            <TrendingUpIcon className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+            <ArrowTrendingUpIcon className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-neutral-900 mb-2">
               Technical Analysis
             </h3>

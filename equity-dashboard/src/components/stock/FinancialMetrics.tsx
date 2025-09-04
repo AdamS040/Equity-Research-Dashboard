@@ -9,8 +9,8 @@ import {
 } from '../ui'
 import { 
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   CurrencyDollarIcon,
   BanknotesIcon,
   ScaleIcon,
@@ -80,7 +80,7 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
     return {
       profitability: {
         name: 'Profitability',
-        icon: TrendingUpIcon,
+        icon: ArrowTrendingUpIcon,
         metrics: [
           {
             name: 'Return on Equity (ROE)',
@@ -202,7 +202,7 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
       },
       growth: {
         name: 'Growth',
-        icon: TrendingUpIcon,
+        icon: ArrowTrendingUpIcon,
         metrics: [
           {
             name: 'Revenue Growth',
@@ -243,9 +243,9 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case 'up':
-        return <TrendingUpIcon className="w-4 h-4 text-green-500" />
+        return <ArrowTrendingUpIcon className="w-4 h-4 text-green-500" />
       case 'down':
-        return <TrendingDownIcon className="w-4 h-4 text-red-500" />
+        return <ArrowTrendingDownIcon className="w-4 h-4 text-red-500" />
       default:
         return <div className="w-4 h-4 bg-neutral-400 rounded-full" />
     }

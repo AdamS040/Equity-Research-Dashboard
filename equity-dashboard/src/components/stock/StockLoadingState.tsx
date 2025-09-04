@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, CardBody, Spinner } from '../ui'
 import { 
   ChartBarIcon, 
-  TrendingUpIcon, 
+  ArrowTrendingUpIcon, 
   BuildingOfficeIcon, 
   NewspaperIcon 
 } from '@heroicons/react/24/outline'
@@ -34,7 +34,7 @@ export const StockLoadingState: React.FC<StockLoadingStateProps> = ({
       
       case 'technical':
         return {
-          icon: <TrendingUpIcon className="w-12 h-12 text-purple-500" />,
+          icon: <ArrowTrendingUpIcon className="w-12 h-12 text-purple-500" />,
           title: 'Loading Technical Analysis',
           description: 'Calculating RSI, MACD, and moving averages...'
         }

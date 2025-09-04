@@ -9,8 +9,8 @@ import {
 } from '../ui'
 import { 
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   XCircleIcon
@@ -323,14 +323,14 @@ export const TechnicalAnalysis: React.FC<TechnicalAnalysisProps> = ({
         <CardBody>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-              <TrendingDownIcon className="w-8 h-8 text-red-500 mx-auto mb-2" />
+              <ArrowTrendingDownIcon className="w-8 h-8 text-red-500 mx-auto mb-2" />
               <h3 className="font-semibold text-red-800 mb-1">Resistance</h3>
               <p className="text-2xl font-bold text-red-900">
                 ${indicators.resistance.toFixed(2)}
               </p>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-              <TrendingUpIcon className="w-8 h-8 text-green-500 mx-auto mb-2" />
+              <ArrowTrendingUpIcon className="w-8 h-8 text-green-500 mx-auto mb-2" />
               <h3 className="font-semibold text-green-800 mb-1">Support</h3>
               <p className="text-2xl font-bold text-green-900">
                 ${indicators.support.toFixed(2)}

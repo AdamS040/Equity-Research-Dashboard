@@ -20,6 +20,7 @@ export { Card, CardHeader, CardBody, CardFooter } from './Card'
 export { Badge } from './Badge'
 export { Spinner } from './Spinner'
 export { Modal } from './Modal'
+export { ErrorDisplay } from '../ErrorDisplay'
 
 // Layout Components
 export { Container } from './Container'

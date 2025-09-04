@@ -7,7 +7,6 @@ import {
   XMarkIcon,
   Bars3Icon
 } from '@heroicons/react/24/outline'
-import { useAppStore } from '../store'
 import { cn } from '../utils'
 
 const navigation = [
@@ -17,9 +16,17 @@ const navigation = [
   { name: 'Analysis', href: '/analysis', icon: Cog6ToothIcon },
 ]
 
-export const Sidebar = () => {
+interface SidebarProps {
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+}
+
+export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const location = useLocation()
-  const { sidebarOpen, toggleSidebar } = useAppStore()
+  
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
 
   return (
     <>

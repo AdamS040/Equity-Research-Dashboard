@@ -174,10 +174,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               'absolute left-0 top-1/2 transform -translate-y-1/2 flex items-center',
               {
                 'pl-2': size === 'xs',
-                'pl-3': size === 'sm',
-                'pl-3': size === 'base' || size === 'lg',
-                'pl-4': size === 'xl',
-                'pl-4': size === '2xl',
+                'pl-3': size === 'sm' || size === 'base' || size === 'lg',
+                'pl-4': size === 'xl' || size === '2xl',
                 'pl-5': size === '3xl' || size === '4xl',
               }
             )}>
@@ -204,10 +202,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             'absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center',
             {
               'pr-2': size === 'xs',
-              'pr-3': size === 'sm',
-              'pr-3': size === 'base' || size === 'lg',
-              'pr-4': size === 'xl',
-              'pr-4': size === '2xl',
+              'pr-3': size === 'sm' || size === 'base' || size === 'lg',
+              'pr-4': size === 'xl' || size === '2xl',
               'pr-5': size === '3xl' || size === '4xl',
             }
           )}>

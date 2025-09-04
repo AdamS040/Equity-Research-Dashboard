@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { 
   ChartBarIcon, 
   CalculatorIcon, 
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
   ArrowUpIcon,
   ArrowDownIcon
@@ -81,7 +81,7 @@ export const Analysis = () => {
     { id: 'dcf', name: 'DCF Analysis', icon: CalculatorIcon },
     { id: 'comparable', name: 'Comparable Analysis', icon: ChartBarIcon },
     { id: 'risk', name: 'Risk Analysis', icon: ExclamationTriangleIcon },
-    { id: 'monte-carlo', name: 'Monte Carlo', icon: TrendingUpIcon }
+    { id: 'monte-carlo', name: 'Monte Carlo', icon: ArrowTrendingUpIcon }
   ]
 
   const renderDCFAnalysis = () => (

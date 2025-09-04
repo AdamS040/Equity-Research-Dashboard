@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { 
-  TrendingUpIcon, 
-  TrendingDownIcon, 
+  ArrowTrendingUpIcon, 
+  ArrowTrendingDownIcon, 
   ChartBarIcon,
   CurrencyDollarIcon,
   ArrowUpIcon,
@@ -165,9 +165,9 @@ export const Dashboard = () => {
                   activity.action === 'Bought' ? 'bg-success-100' : 'bg-danger-100'
                 )}>
                   {activity.action === 'Bought' ? (
-                    <TrendingUpIcon className="w-4 h-4 text-success-600" />
+                    <ArrowTrendingUpIcon className="w-4 h-4 text-success-600" />
                   ) : (
-                    <TrendingDownIcon className="w-4 h-4 text-danger-600" />
+                    <ArrowTrendingDownIcon className="w-4 h-4 text-danger-600" />
                   )}
                 </div>
                 <div>

@@ -11,22 +11,23 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
+    "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.0.18",
+    "@tanstack/react-query": "^5.8.4",
+    "@tanstack/react-query-devtools": "^5.86.0",
+    "clsx": "^2.0.0",
+    "d3": "^7.8.5",
+    "framer-motion": "^10.16.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "zustand": "^4.4.7",
-    "@tanstack/react-query": "^5.8.4",
-    "@headlessui/react": "^1.7.17",
     "recharts": "^2.8.0",
-    "d3": "^7.8.5",
-    "framer-motion": "^10.16.5",
-    "@heroicons/react": "^2.0.18",
-    "clsx": "^2.0.0"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@types/d3": "^7.4.3",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
     "@vitejs/plugin-react": "^4.1.1",

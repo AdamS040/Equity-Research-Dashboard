@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { 
   MagnifyingGlassIcon, 
   BellIcon, 
@@ -5,11 +6,19 @@ import {
   SunIcon,
   MoonIcon
 } from '@heroicons/react/24/outline'
-import { useAppStore } from '../store'
 import { cn } from '../utils'
 
-export const Header = () => {
-  const { theme, toggleTheme, sidebarOpen } = useAppStore()
+interface HeaderProps {
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+}
+
+export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light')
+  }
 
   return (
     <header className="bg-white shadow-sm border-b border-neutral-200">

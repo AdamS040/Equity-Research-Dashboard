@@ -1,39 +1,94 @@
-import { Routes, Route } from 'react-router-dom'
-import { DesignSystemDemo } from './components/ui/DesignSystemDemo'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { AuthProvider } from './components/AuthProvider'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { LoginForm } from './components/LoginForm'
+import { RegisterForm } from './components/RegisterForm'
+import { Layout } from './components/Layout'
+import { Dashboard } from './pages/Dashboard'
+import { Portfolio } from './pages/Portfolio'
+import { Research } from './pages/Research'
+import { Analysis } from './pages/Analysis'
 
-// Simple test component for other routes
-function TestComponent() {
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-blue-600 mb-4">
-        Equity Research Dashboard
-      </h1>
-      <p className="text-gray-600 mb-8">
-        Welcome to your equity research dashboard. The application is working!
-      </p>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Dashboard Features</h2>
-        <ul className="list-disc list-inside space-y-2">
-          <li>Portfolio Management</li>
-          <li>Stock Analysis</li>
-          <li>Research Reports</li>
-          <li>Risk Assessment</li>
-        </ul>
-      </div>
-    </div>
-  )
-}
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401/403 errors
+        if (error?.status === 401 || error?.status === 403) return false
+        return failureCount < 3
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+})
 
 function App() {
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <Routes>
-        <Route path="/" element={<DesignSystemDemo />} />
-        <Route path="/portfolio" element={<TestComponent />} />
-        <Route path="/research" element={<TestComponent />} />
-        <Route path="/analysis" element={<TestComponent />} />
-      </Routes>
-    </div>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <div className="min-h-screen bg-neutral-50">
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginForm />} />
+              <Route path="/register" element={<RegisterForm />} />
+              
+              {/* Protected routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/portfolio"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Portfolio />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/research"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Research />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analysis"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Analysis />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Catch all route */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

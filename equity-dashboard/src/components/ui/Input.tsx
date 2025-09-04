@@ -94,8 +94,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       {
         'pl-8': leftIcon && size === 'xs',
         'pl-9': leftIcon && size === 'sm',
-        'pl-10': leftIcon && size === 'base',
-        'pl-11': leftIcon && size === 'lg',
+        'pl-10': leftIcon && (size === 'base' || size === 'lg'),
         'pl-12': leftIcon && size === 'xl',
         'pl-14': leftIcon && size === '2xl',
         'pl-16': leftIcon && size === '3xl',
@@ -104,8 +103,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       {
         'pr-8': (rightIcon || clearable) && size === 'xs',
         'pr-9': (rightIcon || clearable) && size === 'sm',
-        'pr-10': (rightIcon || clearable) && size === 'base',
-        'pr-11': (rightIcon || clearable) && size === 'lg',
+        'pr-10': (rightIcon || clearable) && (size === 'base' || size === 'lg'),
         'pr-12': (rightIcon || clearable) && size === 'xl',
         'pr-14': (rightIcon || clearable) && size === '2xl',
         'pr-16': (rightIcon || clearable) && size === '3xl',
@@ -177,12 +175,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               {
                 'pl-2': size === 'xs',
                 'pl-3': size === 'sm',
-                'pl-3': size === 'base',
-                'pl-3': size === 'lg',
+                'pl-3': size === 'base' || size === 'lg',
                 'pl-4': size === 'xl',
                 'pl-4': size === '2xl',
-                'pl-5': size === '3xl',
-                'pl-5': size === '4xl',
+                'pl-5': size === '3xl' || size === '4xl',
               }
             )}>
               <div className={clsx(iconSizeClasses[size], 'text-neutral-400')}>
@@ -209,12 +205,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {
               'pr-2': size === 'xs',
               'pr-3': size === 'sm',
-              'pr-3': size === 'base',
-              'pr-3': size === 'lg',
+              'pr-3': size === 'base' || size === 'lg',
               'pr-4': size === 'xl',
               'pr-4': size === '2xl',
-              'pr-5': size === '3xl',
-              'pr-5': size === '4xl',
+              'pr-5': size === '3xl' || size === '4xl',
             }
           )}>
             {clearable && currentValue && (

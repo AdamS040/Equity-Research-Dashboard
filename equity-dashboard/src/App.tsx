@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ defau
 const Portfolio = lazy(() => import('./pages/Portfolio').then(module => ({ default: module.Portfolio })))
 const Research = lazy(() => import('./pages/Research').then(module => ({ default: module.Research })))
 const Analysis = lazy(() => import('./pages/Analysis').then(module => ({ default: module.Analysis })))
+const StockAnalysis = lazy(() => import('./pages/StockAnalysis').then(module => ({ default: module.StockAnalysis })))
 const Settings = lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })))
 
 // Create a client
@@ -98,6 +99,14 @@ function App() {
                 element={
                   <ProtectedRouteWrapper>
                     <Analysis />
+                  </ProtectedRouteWrapper>
+                }
+              />
+              <Route
+                path="/stock/:symbol"
+                element={
+                  <ProtectedRouteWrapper>
+                    <StockAnalysis />
                   </ProtectedRouteWrapper>
                 }
               />

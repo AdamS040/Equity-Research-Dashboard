@@ -1,15 +1,21 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Suspense, lazy } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthProvider } from './components/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginForm } from './components/LoginForm'
 import { RegisterForm } from './components/RegisterForm'
 import { Layout } from './components/Layout'
-import { Dashboard } from './pages/Dashboard'
-import { Portfolio } from './pages/Portfolio'
-import { Research } from './pages/Research'
-import { Analysis } from './pages/Analysis'
+import { SkipLinks } from './components/SkipLinks'
+import { Spinner } from './components/ui/Spinner'
+
+// Lazy load page components for code splitting
+const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
+const Portfolio = lazy(() => import('./pages/Portfolio').then(module => ({ default: module.Portfolio })))
+const Research = lazy(() => import('./pages/Research').then(module => ({ default: module.Research })))
+const Analysis = lazy(() => import('./pages/Analysis').then(module => ({ default: module.Analysis })))
+const Settings = lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })))
 
 // Create a client
 const queryClient = new QueryClient({
@@ -29,56 +35,78 @@ const queryClient = new QueryClient({
   },
 })
 
+// Loading component for Suspense fallback
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="text-center">
+      <Spinner size="lg" />
+      <p className="mt-4 text-neutral-600">Loading page...</p>
+    </div>
+  </div>
+)
+
+// Route wrapper component for protected routes with lazy loading
+const ProtectedRouteWrapper = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <Layout>
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </Layout>
+  </ProtectedRoute>
+)
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <div className="min-h-screen bg-neutral-50">
+            <SkipLinks />
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegisterForm />} />
               
-              {/* Protected routes */}
+              {/* Protected routes with lazy loading */}
               <Route
                 path="/"
                 element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Dashboard />
-                    </Layout>
-                  </ProtectedRoute>
+                  <ProtectedRouteWrapper>
+                    <Dashboard />
+                  </ProtectedRouteWrapper>
                 }
               />
               <Route
                 path="/portfolio"
                 element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Portfolio />
-                    </Layout>
-                  </ProtectedRoute>
+                  <ProtectedRouteWrapper>
+                    <Portfolio />
+                  </ProtectedRouteWrapper>
                 }
               />
               <Route
                 path="/research"
                 element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Research />
-                    </Layout>
-                  </ProtectedRoute>
+                  <ProtectedRouteWrapper>
+                    <Research />
+                  </ProtectedRouteWrapper>
                 }
               />
               <Route
                 path="/analysis"
                 element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Analysis />
-                    </Layout>
-                  </ProtectedRoute>
+                  <ProtectedRouteWrapper>
+                    <Analysis />
+                  </ProtectedRouteWrapper>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRouteWrapper>
+                    <Settings />
+                  </ProtectedRouteWrapper>
                 }
               />
               

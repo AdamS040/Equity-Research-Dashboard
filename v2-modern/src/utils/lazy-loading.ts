@@ -5,31 +5,41 @@
  * error boundaries, and performance monitoring
  */
 
-import { ComponentType, lazy, Suspense } from 'react'
+import React, { ComponentType, lazy, Suspense } from 'react'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 
-// Enhanced lazy loading with retry mechanism
+// Simplified lazy loading with basic retry mechanism
 export function createLazyComponent<T extends ComponentType<any>>(
   importFn: () => Promise<{ default: T }>,
-  retries: number = 3
+  retries: number = 2
 ): T {
   return lazy(() => {
     return new Promise<{ default: T }>((resolve, reject) => {
       let attempts = 0
 
-      const attemptImport = () => {
-        importFn()
-          .then(resolve)
-          .catch((error) => {
-            attempts++
-            if (attempts < retries) {
-              console.warn(`Lazy loading attempt ${attempts} failed, retrying...`, error)
-              setTimeout(attemptImport, 1000 * attempts) // Exponential backoff
-            } else {
-              console.error('Lazy loading failed after all retries:', error)
-              reject(error)
-            }
-          })
+      const attemptImport = async () => {
+        try {
+          const module = await importFn()
+          
+          // Ensure we have a valid default export
+          if (module.default && typeof module.default === 'function') {
+            resolve(module)
+          } else {
+            throw new Error('Module does not have a valid default export')
+          }
+        } catch (error) {
+          attempts++
+          console.warn(`Lazy loading attempt ${attempts} failed:`, error)
+          
+          if (attempts < retries) {
+            // Simple exponential backoff
+            const delay = Math.min(1000 * Math.pow(2, attempts - 1), 3000)
+            setTimeout(attemptImport, delay)
+          } else {
+            console.error('Lazy loading failed after all retries:', error)
+            reject(error)
+          }
+        }
       }
 
       attemptImport()
@@ -37,14 +47,27 @@ export function createLazyComponent<T extends ComponentType<any>>(
   })
 }
 
+// Network status check
+export function isOnline(): boolean {
+  return navigator.onLine
+}
+
+// Check if we have a good connection
+export function hasGoodConnection(): boolean {
+  if (!('connection' in navigator)) return true
+  
+  const connection = (navigator as any).connection
+  if (!connection) return true
+  
+  // Skip preloading on slow connections
+  return !['slow-2g', '2g'].includes(connection.effectiveType)
+}
+
 // Preload function for critical components
 export function preloadComponent(importFn: () => Promise<any>): void {
-  // Only preload if the browser supports it and we're not on a slow connection
-  if ('connection' in navigator) {
-    const connection = (navigator as any).connection
-    if (connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g')) {
-      return // Skip preloading on slow connections
-    }
+  // Only preload if we have a good connection
+  if (!hasGoodConnection()) {
+    return
   }
 
   // Preload after a short delay to not block initial render

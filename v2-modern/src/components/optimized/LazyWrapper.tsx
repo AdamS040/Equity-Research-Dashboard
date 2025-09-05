@@ -32,34 +32,30 @@ export const LazyWrapper: React.FC<LazyWrapperProps> = ({
   onLoadComplete,
   onError
 }) => {
-  const startTime = performance.now()
+  const startTime = React.useRef(performance.now())
 
   useEffect(() => {
     onLoadStart?.()
-  }, [onLoadStart])
-
-  const handleLoadComplete = () => {
-    const loadTime = performance.now() - startTime
-    onLoadComplete?.()
-    
-    // Log performance metrics
-    if (loadTime > 1000) {
-      console.warn(`Slow component load: ${loadTime.toFixed(2)}ms`)
+    return () => {
+      const loadTime = performance.now() - startTime.current
+      onLoadComplete?.()
+      
+      // Log performance metrics
+      if (loadTime > 1000) {
+        console.warn(`Slow component load: ${loadTime.toFixed(2)}ms`)
+      }
     }
-  }
+  }, [onLoadStart, onLoadComplete])
+
+  const handleError = React.useCallback((error: Error, errorInfo: any) => {
+    console.error('LazyWrapper error:', error, errorInfo)
+    onError?.(error)
+  }, [onError])
 
   return (
-    <ErrorBoundary onError={onError}>
-      <Suspense 
-        fallback={
-          <div>
-            {fallback || <DefaultFallback />}
-          </div>
-        }
-      >
-        <div onLoad={handleLoadComplete}>
-          {children}
-        </div>
+    <ErrorBoundary onError={handleError}>
+      <Suspense fallback={fallback || <DefaultFallback />}>
+        {children}
       </Suspense>
     </ErrorBoundary>
   )

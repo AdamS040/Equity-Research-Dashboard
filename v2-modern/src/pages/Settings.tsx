@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   UserIcon, 
@@ -25,6 +25,12 @@ import {
 } from '../components/ui'
 
 export const Settings = () => {
+  // Defensive check for React hooks
+  if (typeof useState !== 'function') {
+    console.error('useState is not available - React may not be properly initialized')
+    return <div>Loading...</div>
+  }
+  
   const [activeTab, setActiveTab] = useState('profile')
 
   const tabs = [

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { 
   ChartBarIcon, 
   CalculatorIcon, 
@@ -75,6 +75,12 @@ const mockMonteCarloData = {
 }
 
 export const Analysis = () => {
+  // Defensive check for React hooks
+  if (typeof useState !== 'function') {
+    console.error('useState is not available - React may not be properly initialized')
+    return <div>Loading...</div>
+  }
+  
   const [activeTab, setActiveTab] = useState('dcf')
 
   const tabs = [

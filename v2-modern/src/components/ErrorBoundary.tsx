@@ -45,6 +45,20 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('ErrorBoundary caught an error:', error, errorInfo)
     }
 
+    // Check for specific error types and provide helpful context
+    if (error.message.includes('Failed to fetch dynamically imported module')) {
+      console.warn('Dynamic import failed - this might be a network issue or module loading problem')
+    }
+    
+    if (error.message.includes('Cannot read properties of null')) {
+      console.warn('React hooks error detected - component may not be properly initialized')
+      console.warn('This is often caused by inconsistent React imports or lazy loading timing issues')
+    }
+    
+    if (error.message.includes('useState')) {
+      console.warn('useState error detected - check React import consistency')
+    }
+
     // Update state with error info
     this.setState({
       error,

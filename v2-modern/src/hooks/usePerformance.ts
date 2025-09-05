@@ -5,7 +5,7 @@
  * memoization, debouncing, and performance monitoring
  */
 
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react'
 
 // Debounced callback hook
 export function useDebouncedCallback<T extends (...args: any[]) => any>(

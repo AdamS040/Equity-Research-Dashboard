@@ -4,7 +4,7 @@
  * Provides a React hook for using Web Workers for heavy calculations
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react'
+import React, { useCallback, useRef, useEffect, useState } from 'react'
 
 interface WorkerMessage {
   id: string

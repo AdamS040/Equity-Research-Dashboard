@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useMarketDataWebSocket, useStockQuotesWebSocket } from '../useWebSocket'
 import { stockService } from '../../services/api/stocks'
 import { stockKeys } from './useStocks'

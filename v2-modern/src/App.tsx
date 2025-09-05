@@ -1,3 +1,4 @@
+import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Suspense, lazy, useEffect } from 'react'
@@ -18,14 +19,15 @@ import {
   UserPreferencesProvider, 
   AccessibilityProvider 
 } from './components/ui'
+import { validateReactImport, validateReactHooks } from './utils/reactValidation'
 
 // Enhanced lazy loading with retry mechanism and preloading
-const Dashboard = createLazyComponent(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
-const Portfolio = createLazyComponent(() => import('./pages/Portfolio').then(module => ({ default: module.Portfolio })))
-const Research = createLazyComponent(() => import('./pages/Research').then(module => ({ default: module.Research })))
-const Analysis = createLazyComponent(() => import('./pages/Analysis').then(module => ({ default: module.Analysis })))
-const StockAnalysis = createLazyComponent(() => import('./pages/StockAnalysis').then(module => ({ default: module.StockAnalysis })))
-const Settings = createLazyComponent(() => import('./pages/Settings').then(module => ({ default: module.Settings })))
+const Dashboard = createLazyComponent(() => import('./pages/Dashboard'))
+const Portfolio = createLazyComponent(() => import('./pages/Portfolio'))
+const Research = createLazyComponent(() => import('./pages/Research'))
+const Analysis = createLazyComponent(() => import('./pages/Analysis'))
+const StockAnalysis = createLazyComponent(() => import('./pages/StockAnalysis'))
+const Settings = createLazyComponent(() => import('./pages/Settings'))
 
 // Preload critical routes after initial load
 const preloadCriticalRoutes = () => {
@@ -77,24 +79,43 @@ const ProtectedRouteWrapper = ({
 }: { 
   children: React.ReactNode
   componentName?: string 
-}) => (
-  <ProtectedRoute>
-    <Layout>
-      <LazyWrapper
-        onLoadStart={() => componentName && lazyLoadMonitor.recordLoadStart(componentName)}
-        onLoadComplete={() => componentName && lazyLoadMonitor.recordLoadComplete(componentName)}
-        onError={(error) => componentName && lazyLoadMonitor.recordError(componentName)}
-        fallback={<PageLoader componentName={componentName} />}
-      >
-        {children}
-      </LazyWrapper>
-    </Layout>
-  </ProtectedRoute>
-)
+}) => {
+  const handleError = React.useCallback((error: Error) => {
+    console.error(`Error in ${componentName}:`, error)
+    if (componentName) {
+      lazyLoadMonitor.recordError(componentName)
+    }
+  }, [componentName])
+
+  return (
+    <ProtectedRoute>
+      <Layout>
+        <LazyWrapper
+          onLoadStart={() => componentName && lazyLoadMonitor.recordLoadStart(componentName)}
+          onLoadComplete={() => componentName && lazyLoadMonitor.recordLoadComplete(componentName)}
+          onError={handleError}
+          fallback={<PageLoader componentName={componentName} />}
+        >
+          {children}
+        </LazyWrapper>
+      </Layout>
+    </ProtectedRoute>
+  )
+}
 
 function App() {
   // Initialize performance monitoring and service worker
   useEffect(() => {
+    // Validate React imports in development
+    if (process.env.NODE_ENV === 'development') {
+      if (!validateReactImport()) {
+        console.error('React import validation failed in App component')
+      }
+      if (!validateReactHooks()) {
+        console.error('React hooks validation failed in App component')
+      }
+    }
+    
     // Initialize performance monitoring
     performanceMonitor.setEnabled(true)
     

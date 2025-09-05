@@ -8,11 +8,21 @@ import {
   KeyIcon,
   GlobeAltIcon,
   ChartBarIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  EyeIcon,
+  SpeakerWaveIcon
 } from '@heroicons/react/24/outline'
-import { Card } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
+import { 
+  Card, 
+  Button, 
+  Input, 
+  PageTransition, 
+  StaggeredList, 
+  HoverScale,
+  ThemeSelector,
+  SettingsPanel,
+  AccessibilitySettings
+} from '../components/ui'
 
 export const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile')
@@ -22,8 +32,9 @@ export const Settings = () => {
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
     { id: 'preferences', name: 'Preferences', icon: CogIcon },
-    { id: 'api', name: 'API Keys', icon: KeyIcon },
+    { id: 'accessibility', name: 'Accessibility', icon: EyeIcon },
     { id: 'appearance', name: 'Appearance', icon: GlobeAltIcon },
+    { id: 'api', name: 'API Keys', icon: KeyIcon },
   ]
 
   const renderTabContent = () => {
@@ -126,36 +137,10 @@ export const Settings = () => {
         )
       
       case 'preferences':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-neutral-900 mb-4">Application Preferences</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-neutral-900">Auto-refresh Data</h4>
-                    <p className="text-sm text-neutral-500">Automatically refresh market data every 30 seconds</p>
-                  </div>
-                  <input type="checkbox" className="rounded border-neutral-300" defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-neutral-900">Show Advanced Charts</h4>
-                    <p className="text-sm text-neutral-500">Display technical indicators and advanced charting tools</p>
-                  </div>
-                  <input type="checkbox" className="rounded border-neutral-300" />
-                </div>
-                <div className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-neutral-900">Compact View</h4>
-                    <p className="text-sm text-neutral-500">Use a more compact layout for data tables</p>
-                  </div>
-                  <input type="checkbox" className="rounded border-neutral-300" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )
+        return <SettingsPanel />
+      
+      case 'accessibility':
+        return <AccessibilitySettings />
       
       case 'api':
         return (
@@ -176,34 +161,29 @@ export const Settings = () => {
         return (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-neutral-900 mb-4">Appearance Settings</h3>
-              <div className="space-y-4">
+              <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-100 mb-4">
+                Appearance Settings
+              </h3>
+              <div className="space-y-6">
+                <ThemeSelector />
+                
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Theme
-                  </label>
-                  <select className="w-full p-2 border border-neutral-300 rounded-lg">
-                    <option>Light</option>
-                    <option>Dark</option>
-                    <option>System</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                     Language
                   </label>
-                  <select className="w-full p-2 border border-neutral-300 rounded-lg">
+                  <select className="w-full p-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100">
                     <option>English</option>
                     <option>Spanish</option>
                     <option>French</option>
                     <option>German</option>
                   </select>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                     Date Format
                   </label>
-                  <select className="w-full p-2 border border-neutral-300 rounded-lg">
+                  <select className="w-full p-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100">
                     <option>MM/DD/YYYY</option>
                     <option>DD/MM/YYYY</option>
                     <option>YYYY-MM-DD</option>
@@ -220,51 +200,54 @@ export const Settings = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Settings</h1>
-        <p className="text-neutral-600 mt-1">
-          Manage your account settings and preferences
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="p-0">
-            <nav className="space-y-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center px-4 py-3 text-left text-sm font-medium rounded-none border-l-4 transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-primary-50 text-primary-700 border-primary-600'
-                      : 'text-neutral-700 hover:bg-neutral-50 border-transparent'
-                  }`}
-                >
-                  <tab.icon className="w-5 h-5 mr-3" />
-                  {tab.name}
-                </button>
-              ))}
-            </nav>
-          </Card>
+    <PageTransition>
+      <div className="space-y-6" id="main-content">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">Settings</h1>
+          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+            Manage your account settings and preferences
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="lg:col-span-3">
-          <Card>
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {renderTabContent()}
-            </motion.div>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <Card className="p-0">
+              <nav className="space-y-1">
+                {tabs.map((tab) => (
+                  <HoverScale key={tab.id}>
+                    <button
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center px-4 py-3 text-left text-sm font-medium rounded-none border-l-4 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                        activeTab === tab.id
+                          ? 'bg-primary-50 text-primary-700 border-primary-600 dark:bg-primary-900/20 dark:text-primary-400'
+                          : 'text-neutral-700 hover:bg-neutral-50 border-transparent dark:text-neutral-300 dark:hover:bg-neutral-800'
+                      }`}
+                    >
+                      <tab.icon className="w-5 h-5 mr-3" />
+                      {tab.name}
+                    </button>
+                  </HoverScale>
+                ))}
+              </nav>
+            </Card>
+          </div>
+
+          {/* Content */}
+          <div className="lg:col-span-3">
+            <Card>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderTabContent()}
+              </motion.div>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+    </PageTransition>
   )
 }

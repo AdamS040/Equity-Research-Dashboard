@@ -13,6 +13,11 @@ import { createLazyComponent, routePreloader, lazyLoadMonitor } from './utils/la
 import { LazyWrapper } from './components/optimized/LazyWrapper'
 import { performanceMonitor } from './utils/performanceMonitor'
 import { serviceWorkerManager } from './utils/serviceWorker'
+import { 
+  ThemeProvider, 
+  UserPreferencesProvider, 
+  AccessibilityProvider 
+} from './components/ui'
 
 // Enhanced lazy loading with retry mechanism and preloading
 const Dashboard = createLazyComponent(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
@@ -108,10 +113,19 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <div className="min-h-screen bg-neutral-50">
-            <SkipLinks />
-            <Routes>
+        <ThemeProvider>
+          <UserPreferencesProvider>
+            <AccessibilityProvider>
+              <AuthProvider>
+                <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                  <SkipLinks 
+                    links={[
+                      { href: '#main-content', label: 'Skip to main content' },
+                      { href: '#navigation', label: 'Skip to navigation' },
+                      { href: '#sidebar', label: 'Skip to sidebar' }
+                    ]} 
+                  />
+                  <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegisterForm />} />
@@ -166,11 +180,14 @@ function App() {
                 }
               />
               
-              {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-        </AuthProvider>
+                    {/* Catch all route */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </div>
+              </AuthProvider>
+            </AccessibilityProvider>
+          </UserPreferencesProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   )

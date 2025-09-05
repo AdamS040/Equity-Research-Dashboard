@@ -1,150 +1,263 @@
-import { useEffect, useRef, useCallback } from 'react'
+/**
+ * Performance Optimization Hooks
+ * 
+ * Custom hooks for React performance optimization including
+ * memoization, debouncing, and performance monitoring
+ */
 
-interface PerformanceMetrics {
-  renderTime: number
-  componentName: string
-  timestamp: number
-}
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
 
-interface PerformanceHook {
-  measureRender: (componentName: string) => () => void
-  getMetrics: () => PerformanceMetrics[]
-  clearMetrics: () => void
-}
+// Debounced callback hook
+export function useDebouncedCallback<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): T {
+  const timeoutRef = useRef<number>()
+  const callbackRef = useRef(callback)
 
-export const usePerformance = (): PerformanceHook => {
-  const metricsRef = useRef<PerformanceMetrics[]>([])
-  const renderStartTimeRef = useRef<number>(0)
+  // Update callback ref when callback changes
+  useEffect(() => {
+    callbackRef.current = callback
+  }, [callback])
 
-  const measureRender = useCallback((componentName: string) => {
-    renderStartTimeRef.current = performance.now()
-    
-    return () => {
-      const renderTime = performance.now() - renderStartTimeRef.current
-      
-      metricsRef.current.push({
-        renderTime,
-        componentName,
-        timestamp: Date.now()
-      })
-      
-      // Keep only last 100 metrics to prevent memory leaks
-      if (metricsRef.current.length > 100) {
-        metricsRef.current = metricsRef.current.slice(-100)
+  return useCallback(
+    ((...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
       }
-    }
-  }, [])
-
-  const getMetrics = useCallback(() => {
-    return [...metricsRef.current]
-  }, [])
-
-  const clearMetrics = useCallback(() => {
-    metricsRef.current = []
-  }, [])
-
-  return {
-    measureRender,
-    getMetrics,
-    clearMetrics
-  }
+      timeoutRef.current = setTimeout(() => {
+        callbackRef.current(...args)
+      }, delay)
+    }) as T,
+    [delay]
+  )
 }
 
-// Hook for monitoring component re-renders
-export const useRenderCount = (componentName: string) => {
+// Throttled callback hook
+export function useThrottledCallback<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): T {
+  const lastCallRef = useRef<number>(0)
+  const callbackRef = useRef(callback)
+
+  useEffect(() => {
+    callbackRef.current = callback
+  }, [callback])
+
+  return useCallback(
+    ((...args: Parameters<T>) => {
+      const now = Date.now()
+      if (now - lastCallRef.current >= delay) {
+        lastCallRef.current = now
+        callbackRef.current(...args)
+      }
+    }) as T,
+    [delay]
+  )
+}
+
+// Memoized selector hook for complex calculations
+export function useMemoizedSelector<T, R>(
+  data: T,
+  selector: (data: T) => R,
+  deps: React.DependencyList = []
+): R {
+  return useMemo(() => selector(data), [data, ...deps])
+}
+
+// Performance monitoring hook
+export function usePerformanceMonitor(componentName: string) {
   const renderCountRef = useRef(0)
-  const prevPropsRef = useRef<any>()
-  const prevStateRef = useRef<any>()
+  const mountTimeRef = useRef(performance.now())
+  const lastRenderTimeRef = useRef(performance.now())
 
   useEffect(() => {
     renderCountRef.current += 1
-    
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-      console.log(`${componentName} rendered ${renderCountRef.current} times`)
+    const currentTime = performance.now()
+    const renderTime = currentTime - lastRenderTimeRef.current
+    lastRenderTimeRef.current = currentTime
+
+    // Log performance warnings
+    if (renderTime > 16) { // More than one frame (60fps)
+      console.warn(`${componentName} render took ${renderTime.toFixed(2)}ms`)
+    }
+
+    if (renderCountRef.current > 10) {
+      console.warn(`${componentName} has rendered ${renderCountRef.current} times`)
     }
   })
 
-  const logRender = useCallback((props?: any, state?: any) => {
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-      const propsChanged = JSON.stringify(props) !== JSON.stringify(prevPropsRef.current)
-      const stateChanged = JSON.stringify(state) !== JSON.stringify(prevStateRef.current)
-      
-      console.log(`${componentName} render #${renderCountRef.current}:`, {
-        propsChanged,
-        stateChanged,
-        props,
-        state
-      })
-      
-      prevPropsRef.current = props
-      prevStateRef.current = state
-    }
-  }, [componentName])
-
   return {
     renderCount: renderCountRef.current,
-    logRender
+    mountTime: mountTimeRef.current,
+    getRenderTime: () => performance.now() - lastRenderTimeRef.current
   }
 }
 
-// Hook for measuring async operations
-export const useAsyncPerformance = () => {
-  const operationsRef = useRef<Map<string, number>>(new Map())
+// Virtual scrolling hook
+export function useVirtualScrolling<T>(
+  items: T[],
+  itemHeight: number,
+  containerHeight: number,
+  overscan: number = 5
+) {
+  const [scrollTop, setScrollTop] = useState(0)
 
-  const startOperation = useCallback((operationName: string) => {
-    operationsRef.current.set(operationName, performance.now())
-  }, [])
+  const visibleRange = useMemo(() => {
+    const start = Math.floor(scrollTop / itemHeight)
+    const end = Math.min(
+      start + Math.ceil(containerHeight / itemHeight) + overscan,
+      items.length
+    )
+    return { start: Math.max(0, start - overscan), end }
+  }, [scrollTop, itemHeight, containerHeight, items.length, overscan])
 
-  const endOperation = useCallback((operationName: string) => {
-    const startTime = operationsRef.current.get(operationName)
-    if (startTime) {
-      const duration = performance.now() - startTime
-      operationsRef.current.delete(operationName)
-      
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-        console.log(`${operationName} took ${duration.toFixed(2)}ms`)
-      }
-      
-      return duration
-    }
-    return 0
+  const visibleItems = useMemo(() => {
+    return items.slice(visibleRange.start, visibleRange.end).map((item, index) => ({
+      item,
+      index: visibleRange.start + index
+    }))
+  }, [items, visibleRange])
+
+  const totalHeight = items.length * itemHeight
+  const offsetY = visibleRange.start * itemHeight
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop)
   }, [])
 
   return {
-    startOperation,
-    endOperation
+    visibleItems,
+    totalHeight,
+    offsetY,
+    handleScroll
   }
 }
 
-// Hook for memory usage monitoring
-export const useMemoryMonitor = () => {
-  const checkMemory = useCallback(() => {
-    if ('memory' in performance) {
-      const memory = (performance as any).memory
-      return {
-        used: memory.usedJSHeapSize,
-        total: memory.totalJSHeapSize,
-        limit: memory.jsHeapSizeLimit,
-        usage: (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100
+// Intersection observer hook for lazy loading
+export function useIntersectionObserver(
+  elementRef: React.RefObject<HTMLElement>,
+  options: IntersectionObserverInit = {}
+) {
+  const [isIntersecting, setIsIntersecting] = useState(false)
+  const [hasIntersected, setHasIntersected] = useState(false)
+
+  useEffect(() => {
+    const element = elementRef.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting)
+        if (entry.isIntersecting && !hasIntersected) {
+          setHasIntersected(true)
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '50px',
+        ...options
       }
+    )
+
+    observer.observe(element)
+
+    return () => {
+      observer.unobserve(element)
     }
-    return null
+  }, [elementRef, options, hasIntersected])
+
+  return { isIntersecting, hasIntersected }
+}
+
+// Stable reference hook to prevent unnecessary re-renders
+export function useStableCallback<T extends (...args: any[]) => any>(callback: T): T {
+  const callbackRef = useRef(callback)
+  
+  useEffect(() => {
+    callbackRef.current = callback
+  }, [callback])
+
+  return useCallback(
+    ((...args: Parameters<T>) => callbackRef.current(...args)) as T,
+    []
+  )
+}
+
+// Memoized object creation to prevent reference changes
+export function useStableObject<T extends Record<string, any>>(obj: T): T {
+  return useMemo(() => obj, Object.values(obj))
+}
+
+// Memoized array creation to prevent reference changes
+export function useStableArray<T>(arr: T[]): T[] {
+  return useMemo(() => arr, arr)
+}
+
+// Batch state updates hook
+export function useBatchedUpdates() {
+  const [, forceUpdate] = useState({})
+  const updatesRef = useRef<(() => void)[]>([])
+  const timeoutRef = useRef<number>()
+
+  const batchedUpdate = useCallback((update: () => void) => {
+    updatesRef.current.push(update)
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      updatesRef.current.forEach(update => update())
+      updatesRef.current = []
+      forceUpdate({})
+    }, 0)
   }, [])
 
-  const logMemoryUsage = useCallback((label?: string) => {
-    const memory = checkMemory()
-    if (memory && typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-      console.log(`${label || 'Memory usage'}:`, {
-        used: `${(memory.used / 1024 / 1024).toFixed(2)} MB`,
-        total: `${(memory.total / 1024 / 1024).toFixed(2)} MB`,
-        limit: `${(memory.limit / 1024 / 1024).toFixed(2)} MB`,
-        usage: `${memory.usage.toFixed(2)}%`
-      })
-    }
-  }, [checkMemory])
+  return batchedUpdate
+}
 
-  return {
-    checkMemory,
-    logMemoryUsage
-  }
+// Memory usage monitoring hook
+export function useMemoryMonitor() {
+  const [memoryInfo, setMemoryInfo] = useState<{
+    usedJSHeapSize?: number
+    totalJSHeapSize?: number
+    jsHeapSizeLimit?: number
+  }>({})
+
+  useEffect(() => {
+    const updateMemoryInfo = () => {
+      if ('memory' in performance) {
+        const memory = (performance as any).memory
+        setMemoryInfo({
+          usedJSHeapSize: memory.usedJSHeapSize,
+          totalJSHeapSize: memory.totalJSHeapSize,
+          jsHeapSizeLimit: memory.jsHeapSizeLimit
+        })
+      }
+    }
+
+    updateMemoryInfo()
+    const interval = setInterval(updateMemoryInfo, 5000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return memoryInfo
+}
+
+// Render count monitoring hook
+export function useRenderCount(componentName?: string) {
+  const renderCountRef = useRef(0)
+  
+  useEffect(() => {
+    renderCountRef.current += 1
+    
+    if (componentName && renderCountRef.current > 10) {
+      console.warn(`${componentName} has rendered ${renderCountRef.current} times`)
+    }
+  })
+
+  return renderCountRef.current
 }

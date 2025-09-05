@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthProvider } from './components/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -9,14 +9,25 @@ import { RegisterForm } from './components/RegisterForm'
 import { Layout } from './components/Layout'
 import { SkipLinks } from './components/SkipLinks'
 import { Spinner } from './components/ui/Spinner'
+import { createLazyComponent, routePreloader, lazyLoadMonitor } from './utils/lazy-loading'
+import { LazyWrapper } from './components/optimized/LazyWrapper'
+import { performanceMonitor } from './utils/performanceMonitor'
+import { serviceWorkerManager } from './utils/serviceWorker'
 
-// Lazy load page components for code splitting
-const Dashboard = lazy(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
-const Portfolio = lazy(() => import('./pages/Portfolio').then(module => ({ default: module.Portfolio })))
-const Research = lazy(() => import('./pages/Research').then(module => ({ default: module.Research })))
-const Analysis = lazy(() => import('./pages/Analysis').then(module => ({ default: module.Analysis })))
-const StockAnalysis = lazy(() => import('./pages/StockAnalysis').then(module => ({ default: module.StockAnalysis })))
-const Settings = lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })))
+// Enhanced lazy loading with retry mechanism and preloading
+const Dashboard = createLazyComponent(() => import('./pages/Dashboard').then(module => ({ default: module.Dashboard })))
+const Portfolio = createLazyComponent(() => import('./pages/Portfolio').then(module => ({ default: module.Portfolio })))
+const Research = createLazyComponent(() => import('./pages/Research').then(module => ({ default: module.Research })))
+const Analysis = createLazyComponent(() => import('./pages/Analysis').then(module => ({ default: module.Analysis })))
+const StockAnalysis = createLazyComponent(() => import('./pages/StockAnalysis').then(module => ({ default: module.StockAnalysis })))
+const Settings = createLazyComponent(() => import('./pages/Settings').then(module => ({ default: module.Settings })))
+
+// Preload critical routes after initial load
+const preloadCriticalRoutes = () => {
+  // Preload most commonly used routes
+  routePreloader.preloadRoute('/portfolio', () => import('./pages/Portfolio'))
+  routePreloader.preloadRoute('/research', () => import('./pages/Research'))
+}
 
 // Create a client
 const queryClient = new QueryClient({
@@ -36,28 +47,64 @@ const queryClient = new QueryClient({
   },
 })
 
-// Loading component for Suspense fallback
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-[400px]">
-    <div className="text-center">
-      <Spinner size="lg" />
-      <p className="mt-4 text-neutral-600">Loading page...</p>
-    </div>
-  </div>
-)
+// Enhanced loading component with performance monitoring
+const PageLoader = ({ componentName }: { componentName?: string }) => {
+  useEffect(() => {
+    if (componentName) {
+      lazyLoadMonitor.recordLoadStart(componentName)
+    }
+  }, [componentName])
 
-// Route wrapper component for protected routes with lazy loading
-const ProtectedRouteWrapper = ({ children }: { children: React.ReactNode }) => (
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="text-center">
+        <Spinner size="lg" />
+        <p className="mt-4 text-neutral-600">Loading page...</p>
+      </div>
+    </div>
+  )
+}
+
+// Enhanced route wrapper with performance monitoring
+const ProtectedRouteWrapper = ({ 
+  children, 
+  componentName 
+}: { 
+  children: React.ReactNode
+  componentName?: string 
+}) => (
   <ProtectedRoute>
     <Layout>
-      <Suspense fallback={<PageLoader />}>
+      <LazyWrapper
+        onLoadStart={() => componentName && lazyLoadMonitor.recordLoadStart(componentName)}
+        onLoadComplete={() => componentName && lazyLoadMonitor.recordLoadComplete(componentName)}
+        onError={(error) => componentName && lazyLoadMonitor.recordError(componentName)}
+        fallback={<PageLoader componentName={componentName} />}
+      >
         {children}
-      </Suspense>
+      </LazyWrapper>
     </Layout>
   </ProtectedRoute>
 )
 
 function App() {
+  // Initialize performance monitoring and service worker
+  useEffect(() => {
+    // Initialize performance monitoring
+    performanceMonitor.setEnabled(true)
+    
+    // Register service worker
+    serviceWorkerManager.register()
+    
+    // Preload critical routes after initial render
+    const timer = setTimeout(preloadCriticalRoutes, 2000) // Preload after 2 seconds
+    
+    return () => {
+      clearTimeout(timer)
+      performanceMonitor.cleanup()
+    }
+  }, [])
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -69,11 +116,11 @@ function App() {
               <Route path="/login" element={<LoginForm />} />
               <Route path="/register" element={<RegisterForm />} />
               
-              {/* Protected routes with lazy loading */}
+              {/* Protected routes with enhanced lazy loading */}
               <Route
                 path="/"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="Dashboard">
                     <Dashboard />
                   </ProtectedRouteWrapper>
                 }
@@ -81,7 +128,7 @@ function App() {
               <Route
                 path="/portfolio"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="Portfolio">
                     <Portfolio />
                   </ProtectedRouteWrapper>
                 }
@@ -89,7 +136,7 @@ function App() {
               <Route
                 path="/research"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="Research">
                     <Research />
                   </ProtectedRouteWrapper>
                 }
@@ -97,7 +144,7 @@ function App() {
               <Route
                 path="/analysis"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="Analysis">
                     <Analysis />
                   </ProtectedRouteWrapper>
                 }
@@ -105,7 +152,7 @@ function App() {
               <Route
                 path="/stock/:symbol"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="StockAnalysis">
                     <StockAnalysis />
                   </ProtectedRouteWrapper>
                 }
@@ -113,7 +160,7 @@ function App() {
               <Route
                 path="/settings"
                 element={
-                  <ProtectedRouteWrapper>
+                  <ProtectedRouteWrapper componentName="Settings">
                     <Settings />
                   </ProtectedRouteWrapper>
                 }

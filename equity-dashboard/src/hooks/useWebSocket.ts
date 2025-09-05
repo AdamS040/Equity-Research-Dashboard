@@ -154,7 +154,7 @@ export const useMarketDataWebSocket = () => {
   }, [])
 
   const ws = useWebSocket({
-    url: (typeof process !== 'undefined' && process.env?.REACT_APP_WS_URL) || 'ws://localhost:8000/ws/market-data',
+    url: (typeof window !== 'undefined' && (window as any).process?.env?.REACT_APP_WS_URL) || 'ws://localhost:8000/ws/market-data',
     onMessage: handleMessage,
     onError: (error) => {
       console.error('Market data WebSocket error:', error)
@@ -181,7 +181,7 @@ export const useStockQuotesWebSocket = (symbols: string[]) => {
   }, [])
 
   const ws = useWebSocket({
-    url: (typeof process !== 'undefined' && process.env?.REACT_APP_WS_URL) || 'ws://localhost:8000/ws/stock-quotes',
+    url: (typeof window !== 'undefined' && (window as any).process?.env?.REACT_APP_WS_URL) || 'ws://localhost:8000/ws/stock-quotes',
     onMessage: handleMessage,
     onError: (error) => {
       console.error('Stock quotes WebSocket error:', error)

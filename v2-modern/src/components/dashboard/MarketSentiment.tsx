@@ -145,7 +145,7 @@ const MarketBreadthChart = memo(({
       const data = payload[0].payload
       const percentage = ((data.value / total) * 100).toFixed(1)
       return (
-        <div className="bg-white p-3 border border-neutral-200 rounded-lg shadow-lg">
+        <div className="bg-white dark:bg-neutral-800 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg">
           <p className="font-medium text-neutral-900">{data.name}</p>
           <p className="text-sm text-neutral-600">
             {data.value.toLocaleString()} ({percentage}%)

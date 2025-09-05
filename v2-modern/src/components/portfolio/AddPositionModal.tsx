@@ -225,7 +225,7 @@ export const AddPositionModal: React.FC<AddPositionModalProps> = ({ isOpen, onCl
 
             {/* Search Results */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {searchResults.map((stock) => (
                   <button
                     key={stock.symbol}

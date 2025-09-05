@@ -502,7 +502,7 @@ export const TopMovers = memo(({ className }: TopMoversProps) => {
               className={cn(
                 'flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors',
                 activeTab === tab.key
-                  ? 'bg-white text-primary-700 shadow-sm'
+                  ? 'bg-white dark:bg-neutral-800 text-primary-700 dark:text-primary-300 shadow-sm'
                   : 'text-neutral-600 hover:text-neutral-900'
               )}
             >
@@ -567,7 +567,7 @@ export const TopMovers = memo(({ className }: TopMoversProps) => {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-neutral-200">
+            <tbody className="bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700">
               <AnimatePresence>
                 {paginatedData.map((stock) => (
                   <StockRow key={stock.symbol} stock={stock} />

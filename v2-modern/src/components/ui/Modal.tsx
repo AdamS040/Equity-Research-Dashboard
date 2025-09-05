@@ -82,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
   }
 
   const modalClasses = clsx(
-    'relative bg-white rounded-lg shadow-xl',
+    'relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl',
     'w-full mx-auto',
     sizeClasses[size],
     className

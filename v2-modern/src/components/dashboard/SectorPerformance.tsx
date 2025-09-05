@@ -229,7 +229,7 @@ const SectorDetailModal = memo(({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-neutral-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
@@ -390,7 +390,7 @@ export const SectorPerformance = memo(({ className }: SectorPerformanceProps) =>
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="bg-white p-3 border border-neutral-200 rounded-lg shadow-lg">
+        <div className="bg-white dark:bg-neutral-800 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg">
           <p className="font-medium text-neutral-900">{data.name}</p>
           <p className="text-sm text-neutral-600">
             Change: {data.changePercent >= 0 ? '+' : ''}{formatPercent(data.changePercent)}
@@ -415,7 +415,7 @@ export const SectorPerformance = memo(({ className }: SectorPerformanceProps) =>
               className={cn(
                 'px-3 py-1 text-sm font-medium rounded-md transition-colors',
                 viewMode === 'chart'
-                  ? 'bg-white text-primary-700 shadow-sm'
+                  ? 'bg-white dark:bg-neutral-800 text-primary-700 dark:text-primary-300 shadow-sm'
                   : 'text-neutral-600 hover:text-neutral-900'
               )}
             >
@@ -426,7 +426,7 @@ export const SectorPerformance = memo(({ className }: SectorPerformanceProps) =>
               className={cn(
                 'px-3 py-1 text-sm font-medium rounded-md transition-colors',
                 viewMode === 'list'
-                  ? 'bg-white text-primary-700 shadow-sm'
+                  ? 'bg-white dark:bg-neutral-800 text-primary-700 dark:text-primary-300 shadow-sm'
                   : 'text-neutral-600 hover:text-neutral-900'
               )}
             >

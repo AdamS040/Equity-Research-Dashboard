@@ -213,7 +213,7 @@ export const TechnicalAnalysis: React.FC<TechnicalAnalysisProps> = ({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-neutral-200 rounded-lg shadow-lg">
+        <div className="bg-white dark:bg-neutral-800 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg">
           <p className="font-medium text-neutral-900 mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">

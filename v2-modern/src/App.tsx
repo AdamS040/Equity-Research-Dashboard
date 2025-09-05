@@ -117,7 +117,7 @@ function App() {
           <UserPreferencesProvider>
             <AccessibilityProvider>
               <AuthProvider>
-                <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                <div className="min-h-screen">
                   <SkipLinks 
                     links={[
                       { href: '#main-content', label: 'Skip to main content' },

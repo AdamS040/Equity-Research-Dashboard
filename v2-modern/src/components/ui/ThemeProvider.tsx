@@ -63,6 +63,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
 
+    // Also update user preferences if they exist
+    const userPreferences = localStorage.getItem('user-preferences')
+    if (userPreferences) {
+      try {
+        const parsed = JSON.parse(userPreferences)
+        parsed.theme = newTheme
+        localStorage.setItem('user-preferences', JSON.stringify(parsed))
+      } catch (error) {
+        console.error('Failed to update user preferences:', error)
+      }
+    }
+
     if (newTheme === 'system') {
       const systemTheme = getSystemTheme()
       applyTheme(systemTheme)
@@ -78,18 +90,32 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   }
 
   useEffect(() => {
-    // Load saved theme
+    // Load saved theme from localStorage or user preferences
     const savedTheme = localStorage.getItem('theme') as Theme
-    if (savedTheme) {
-      setTheme(savedTheme)
+    const userPreferences = localStorage.getItem('user-preferences')
+    let themeToUse = savedTheme || 'system'
+    
+    if (userPreferences) {
+      try {
+        const parsed = JSON.parse(userPreferences)
+        if (parsed.theme) {
+          themeToUse = parsed.theme
+        }
+      } catch (error) {
+        console.error('Failed to parse user preferences:', error)
+      }
+    }
+    
+    if (themeToUse) {
+      setTheme(themeToUse)
     }
 
     // Apply initial theme
-    if (savedTheme === 'system') {
+    if (themeToUse === 'system') {
       const systemTheme = getSystemTheme()
       applyTheme(systemTheme)
-    } else if (savedTheme) {
-      applyTheme(savedTheme)
+    } else if (themeToUse) {
+      applyTheme(themeToUse)
     } else {
       applyTheme(getSystemTheme())
     }
@@ -97,14 +123,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({
     // Listen for system theme changes
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      if (theme === 'system') {
+      const currentTheme = localStorage.getItem('theme') as Theme || 'system'
+      if (currentTheme === 'system') {
         applyTheme(e.matches ? 'dark' : 'light')
       }
     }
 
     mediaQuery.addEventListener('change', handleSystemThemeChange)
     return () => mediaQuery.removeEventListener('change', handleSystemThemeChange)
-  }, [theme])
+  }, [])
 
   const value: ThemeContextType = {
     theme,
@@ -127,7 +154,7 @@ export interface ThemeToggleProps {
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className, showLabel = false }) => {
-  const { theme, colorScheme, toggleTheme } = useTheme()
+  const { colorScheme, toggleTheme } = useTheme()
 
   return (
     <button
@@ -247,13 +274,15 @@ export interface UserPreferencesProviderProps {
 }
 
 export const UserPreferencesProvider: React.FC<UserPreferencesProviderProps> = ({ children }) => {
+  const { setTheme } = useTheme()
+  
   const defaultPreferences = {
     theme: 'system' as Theme,
-    fontSize: 'medium' as const,
+    fontSize: 'medium' as 'small' | 'medium' | 'large',
     reducedMotion: false,
     highContrast: false,
-    dashboardLayout: 'grid' as const,
-    defaultTimeframe: '1M' as const,
+    dashboardLayout: 'grid' as 'grid' | 'list',
+    defaultTimeframe: '1M' as '1D' | '5D' | '1M' | '3M' | '1Y' | '5Y',
     notifications: {
       priceAlerts: true,
       newsUpdates: true,
@@ -283,6 +312,12 @@ export const UserPreferencesProvider: React.FC<UserPreferencesProviderProps> = (
     setPreferences(prev => {
       const updated = { ...prev, [key]: value }
       localStorage.setItem('user-preferences', JSON.stringify(updated))
+      
+      // If updating theme, also update the ThemeProvider
+      if (key === 'theme') {
+        setTheme(value as Theme)
+      }
+      
       return updated
     })
   }
@@ -309,13 +344,50 @@ export const UserPreferencesProvider: React.FC<UserPreferencesProviderProps> = (
 export const SettingsPanel: React.FC = () => {
   const { preferences, updatePreference } = useUserPreferences()
 
+  const themes = [
+    { value: 'light', label: 'Light', icon: '☀️' },
+    { value: 'dark', label: 'Dark', icon: '🌙' },
+    { value: 'system', label: 'System', icon: '💻' },
+  ] as const
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-semibold mb-4">Preferences</h2>
+        <h2 className="text-xl font-semibold mb-4 text-neutral-900 dark:text-neutral-100">Preferences</h2>
         
         <div className="space-y-6">
-          <ThemeSelector />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              Theme
+            </label>
+            <div className="space-y-1">
+              {themes.map((themeOption) => (
+                <label
+                  key={themeOption.value}
+                  className={clsx(
+                    'flex items-center space-x-3 p-2 rounded-lg cursor-pointer',
+                    'hover:bg-neutral-100 dark:hover:bg-neutral-800',
+                    'transition-colors duration-200',
+                    {
+                      'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300': 
+                        preferences.theme === themeOption.value,
+                    }
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={themeOption.value}
+                    checked={preferences.theme === themeOption.value}
+                    onChange={(e) => updatePreference('theme', e.target.value as Theme)}
+                    className="sr-only"
+                  />
+                  <span className="text-lg">{themeOption.icon}</span>
+                  <span className="text-sm font-medium">{themeOption.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
           
           <div>
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">

@@ -34,7 +34,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
   ) => {
     const cardClasses = clsx(
       // Base styles
-      'bg-white rounded-lg transition-all duration-200',
+      'bg-white dark:bg-neutral-800 rounded-lg transition-all duration-200',
       
       // Shadow variants
       {

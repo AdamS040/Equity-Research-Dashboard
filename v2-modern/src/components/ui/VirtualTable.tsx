@@ -23,7 +23,7 @@ export const VirtualTable = memo(<T,>({
   return (
     <div className={cn('w-full', className)}>
       {header && (
-        <div className="sticky top-0 z-10 bg-white border-b border-neutral-200">
+        <div className="sticky top-0 z-10 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
           {header}
         </div>
       )}
@@ -37,7 +37,7 @@ export const VirtualTable = memo(<T,>({
       </div>
       
       {footer && (
-        <div className="sticky bottom-0 z-10 bg-white border-t border-neutral-200">
+        <div className="sticky bottom-0 z-10 bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700">
           {footer}
         </div>
       )}

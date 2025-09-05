@@ -19,6 +19,7 @@ import {
   CogIcon
 } from '@heroicons/react/24/outline'
 import { cn, debounce } from '../utils'
+import { useTheme } from './ui/ThemeProvider'
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -48,7 +49,7 @@ const routeMap = {
 export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
   const location = useLocation()
   const navigate = useNavigate()
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const { colorScheme, toggleTheme } = useTheme()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<typeof mockStocks>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -58,10 +59,6 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
   const searchRef = useRef<HTMLDivElement>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notificationsRef = useRef<HTMLDivElement>(null)
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light')
-  }
 
   const handleSearch = debounce((query: string) => {
     if (query.length > 0) {
@@ -94,7 +91,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
     const pathSegments = location.pathname.split('/').filter(Boolean)
     const breadcrumbs = [{ name: 'Dashboard', href: '/', icon: HomeIcon }]
     
-    pathSegments.forEach((segment, index) => {
+    pathSegments.forEach((_, index) => {
       const href = '/' + pathSegments.slice(0, index + 1).join('/')
       const route = routeMap[href as keyof typeof routeMap]
       if (route) {
@@ -126,16 +123,16 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
   const breadcrumbs = getBreadcrumbs()
 
   return (
-    <header className="bg-white shadow-sm border-b border-neutral-200 sticky top-0 z-30" id="search">
+    <header className="bg-white dark:bg-neutral-900 shadow-sm border-b border-neutral-200 dark:border-neutral-700 sticky top-0 z-30" id="search">
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Mobile menu button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 transition-colors"
+            className="lg:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             aria-label="Toggle sidebar"
           >
-            <Bars3Icon className="w-5 h-5 text-neutral-600" />
+            <Bars3Icon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
           </button>
 
           {/* Breadcrumbs */}
@@ -148,8 +145,8 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                 <span className={cn(
                   "flex items-center space-x-1",
                   index === breadcrumbs.length - 1 
-                    ? "text-neutral-900 font-medium" 
-                    : "text-neutral-500"
+                    ? "text-neutral-900 dark:text-neutral-100 font-medium" 
+                    : "text-neutral-500 dark:text-neutral-400"
                 )}>
                   <crumb.icon className="w-4 h-4" />
                   <span>{crumb.name}</span>
@@ -164,7 +161,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
               <label htmlFor="stock-search" className="sr-only">
                 Search stocks and symbols
               </label>
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" aria-hidden="true" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
               <input
                 id="stock-search"
                 type="text"
@@ -172,7 +169,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400"
                 aria-expanded={showSearchResults}
                 aria-haspopup="listbox"
                 aria-autocomplete="list"
@@ -188,7 +185,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+                    className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
                     id="search-results"
                     role="listbox"
                     aria-label="Search results"
@@ -197,17 +194,17 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                       <button
                         key={stock.symbol}
                         onClick={() => handleStockSelect(stock)}
-                        className="w-full px-4 py-3 text-left hover:bg-neutral-50 border-b border-neutral-100 last:border-b-0"
+                        className="w-full px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 border-b border-neutral-100 dark:border-neutral-700 last:border-b-0"
                         role="option"
                         aria-label={`${stock.symbol} - ${stock.name}, Price: $${stock.price.toFixed(2)}, Change: ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium text-neutral-900">{stock.symbol}</div>
-                            <div className="text-sm text-neutral-500">{stock.name}</div>
+                            <div className="font-medium text-neutral-900 dark:text-neutral-100">{stock.symbol}</div>
+                            <div className="text-sm text-neutral-500 dark:text-neutral-400">{stock.name}</div>
                           </div>
                           <div className="text-right">
-                            <div className="font-medium text-neutral-900">
+                            <div className="font-medium text-neutral-900 dark:text-neutral-100">
                               ${stock.price.toFixed(2)}
                             </div>
                             <div className={cn(
@@ -231,14 +228,14 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title={`Switch to ${colorScheme === 'light' ? 'dark' : 'light'} mode`}
+              aria-label={`Switch to ${colorScheme === 'light' ? 'dark' : 'light'} mode`}
             >
-              {theme === 'light' ? (
-                <MoonIcon className="w-5 h-5 text-neutral-600" />
+              {colorScheme === 'light' ? (
+                <MoonIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
               ) : (
-                <SunIcon className="w-5 h-5 text-neutral-600" />
+                <SunIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
               )}
             </button>
             
@@ -246,10 +243,10 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
             <div className="relative" ref={notificationsRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 rounded-lg hover:bg-neutral-100 transition-colors relative focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-label="Notifications"
               >
-                <BellIcon className="w-5 h-5 text-neutral-600" />
+                <BellIcon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-danger-500 rounded-full"></span>
               </button>
               
@@ -260,13 +257,13 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute right-0 top-full mt-1 w-80 bg-white border border-neutral-200 rounded-lg shadow-lg z-50"
+                    className="absolute right-0 top-full mt-1 w-80 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50"
                   >
-                    <div className="p-4 border-b border-neutral-200">
-                      <h3 className="font-medium text-neutral-900">Notifications</h3>
+                    <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
+                      <h3 className="font-medium text-neutral-900 dark:text-neutral-100">Notifications</h3>
                     </div>
                     <div className="p-4">
-                      <div className="text-sm text-neutral-500 text-center">
+                      <div className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
                         No new notifications
                       </div>
                     </div>
@@ -279,14 +276,14 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
             <div className="relative" ref={userMenuRef}>
               <button 
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex items-center space-x-2 p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-label="User menu"
               >
-                <UserCircleIcon className="w-8 h-8 text-neutral-600" />
-                <span className="hidden md:block text-sm font-medium text-neutral-700">
+                <UserCircleIcon className="w-8 h-8 text-neutral-600 dark:text-neutral-400" />
+                <span className="hidden md:block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                   John Doe
                 </span>
-                <ChevronDownIcon className="w-4 h-4 text-neutral-500" />
+                <ChevronDownIcon className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
               </button>
               
               <AnimatePresence>
@@ -296,19 +293,19 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-50"
+                    className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg z-50"
                   >
                     <div className="py-1">
-                      <button className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center space-x-2">
+                      <button className="w-full px-4 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 flex items-center space-x-2">
                         <UserIcon className="w-4 h-4" />
                         <span>Profile</span>
                       </button>
-                      <button className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center space-x-2">
+                      <button className="w-full px-4 py-2 text-left text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 flex items-center space-x-2">
                         <CogIcon className="w-4 h-4" />
                         <span>Settings</span>
                       </button>
-                      <div className="border-t border-neutral-200 my-1"></div>
-                      <button className="w-full px-4 py-2 text-left text-sm text-danger-600 hover:bg-danger-50 flex items-center space-x-2">
+                      <div className="border-t border-neutral-200 dark:border-neutral-700 my-1"></div>
+                      <button className="w-full px-4 py-2 text-left text-sm text-danger-600 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20 flex items-center space-x-2">
                         <ArrowRightOnRectangleIcon className="w-4 h-4" />
                         <span>Sign out</span>
                       </button>

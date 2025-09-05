@@ -23,6 +23,7 @@ from app.database import db_manager
 from app.api.v1.api import api_router
 from app.utils.logging import setup_logging
 from app.utils.redis_client import redis_manager
+from app.services.websocket_service import websocket_service
 
 
 # Prometheus metrics
@@ -114,6 +115,10 @@ async def lifespan(app: FastAPI):
     await redis_manager.initialize()
     logger.info("Redis connection initialized")
     
+    # Start WebSocket service
+    await websocket_service.start()
+    logger.info("WebSocket service started")
+    
     # Perform database health check
     db_health = await db_manager.health_check()
     if db_health["status"] != "healthy":
@@ -125,6 +130,10 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Equity Research Dashboard API")
+    
+    # Stop WebSocket service
+    await websocket_service.stop()
+    logger.info("WebSocket service stopped")
     
     # Close Redis connection
     await redis_manager.close()

@@ -1,11 +1,12 @@
 # 📊 Equity Research Dashboard
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Dash](https://img.shields.io/badge/Dash-2.0+-orange.svg)](https://dash.plotly.com/)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.0+-orange.svg)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Development-yellow.svg)]()
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
 
-> **Professional-grade equity research platform** featuring real-time market data, advanced financial modeling, portfolio optimization, and comprehensive risk analysis. Built with modern Python technologies and designed for institutional-quality financial analysis.
+> **Professional-grade equity research platform** featuring real-time market data, advanced financial modeling, portfolio optimization, and comprehensive risk analysis. Built with modern React TypeScript technologies and designed for institutional-quality financial analysis.
 
 ## 🎯 Project Overview
 
@@ -20,289 +21,253 @@ This comprehensive equity research dashboard demonstrates advanced proficiency i
 - **🎨 Professional UI/UX**: Responsive design with interactive dashboards
 - **🧪 Production-Ready Code**: Extensive testing, error handling, and documentation
 
-## 🏗️ Architecture & Tech Stack
+## 🚀 Quick Start
 
-### Backend Framework
-- **Python 3.8+** - Core programming language
-- **Dash/Flask** - Web framework for interactive applications
-- **Flask-Login** - Secure user authentication system
-- **SQLite** - Database for user management and data persistence
+### **Recommended: Modern Implementation (v2)**
 
-### Financial Analysis & Modeling
-- **yfinance** - Real-time financial data integration
-- **pandas/numpy** - Data manipulation and numerical computing
-- **scipy** - Scientific computing and optimization algorithms
-- **scikit-learn** - Machine learning and statistical analysis
-- **statsmodels** - Advanced statistical modeling
-
-### Visualization & Frontend
-- **Plotly** - Interactive charts and dashboards
-- **Dash Bootstrap Components** - Professional UI components
-- **Custom CSS/JS** - Responsive design and user interactions
-
-### Development & Quality
-- **pytest** - Comprehensive testing framework
-- **black/flake8** - Code formatting and linting
-- **Type hints** - Code documentation and IDE support
-
-## 📁 Repository Structure
-
-```
-equity-research-dashboard/
-├── 📊 app/                    # Main application
-│   ├── main.py               # Dash application with callbacks
-│   ├── auth.py               # User authentication system
-│   └── utils.py              # Utility functions
-├── 📈 analysis/              # Financial analysis modules
-│   ├── financial_metrics.py  # Ratio calculations
-│   ├── valuation_models.py   # DCF, DDM, comparable analysis
-│   ├── risk_analysis.py      # Risk metrics and VaR
-│   └── portfolio_optimizer.py # MPT optimization
-├── 📊 data/                  # Data layer
-│   ├── data_fetcher.py       # API integration
-│   ├── financial_data.py     # Data processing
-│   └── market_data.py        # Market data fetching
-├── 🎨 visualizations/        # Chart generation
-│   ├── charts.py             # Interactive charts
-│   ├── tables.py             # Data tables
-│   └── dashboards.py         # Dashboard layouts
-├── 🧮 models/                # Financial models
-│   ├── dcf_model.py          # DCF implementation
-│   ├── comparable_analysis.py # Peer analysis
-│   └── monte_carlo.py        # Monte Carlo simulations
-├── 🎯 tests/                 # Comprehensive test suite
-│   ├── test_analysis.py      # Analysis tests
-│   ├── test_data.py          # Data layer tests
-│   └── test_models.py        # Model tests
-└── 📱 static/ & templates/   # Frontend assets
-```
-
-## 🚀 Core Features
-
-### 1. 📊 Real-Time Market Dashboard
-- **Live Market Indices**: S&P 500, NASDAQ, DOW, VIX, Treasury yields
-- **Sector Performance**: 11 major sectors with real-time tracking
-- **Top Movers**: Daily gainers/losers with volume analysis
-- **Market Breadth**: Overall market sentiment indicators
-- **Economic Indicators**: VIX, Treasury yields, market volatility
-
-### 2. 🔬 Advanced Financial Analysis
-- **DCF Valuation**: Complete discounted cash flow analysis with sensitivity testing
-- **Comparable Analysis**: Peer benchmarking and relative valuation
-- **Technical Indicators**: 20+ technical analysis tools (RSI, MACD, Bollinger Bands)
-- **Financial Ratios**: 30+ profitability, liquidity, solvency, and efficiency ratios
-- **Growth Metrics**: Revenue, earnings, and cash flow growth analysis
-
-### 3. ⚡ Portfolio Optimization Engine
-- **Modern Portfolio Theory**: Maximum Sharpe, Minimum Volatility, Equal Weight
-- **Risk Parity**: Equal risk contribution allocation
-- **Black-Litterman**: Bayesian portfolio optimization
-- **Efficient Frontier**: Risk-return optimization visualization
-- **Monte Carlo Simulation**: 10,000+ scenario analysis
-
-### 4. 🛡️ Comprehensive Risk Management
-- **Value at Risk (VaR)**: Historical, parametric, and Monte Carlo VaR
-- **Stress Testing**: Scenario analysis and stress test simulations
-- **Beta Analysis**: Market risk measurement and correlation analysis
-- **Volatility Modeling**: Historical and rolling volatility analysis
-- **Drawdown Analysis**: Maximum drawdown and recovery metrics
-
-### 5. 📋 Professional Research Reports
-- **Automated Analysis**: Comprehensive financial statement analysis
-- **Peer Comparison**: Industry benchmarking and relative analysis
-- **Investment Thesis**: Automated report generation with recommendations
-- **Executive Summaries**: Key metrics and actionable insights
-- **Risk Assessment**: Detailed risk analysis and mitigation strategies
-
-### 6. 👤 User Management System
-- **Secure Authentication**: User registration, login, and session management
-- **Portfolio Management**: User-specific portfolio storage and tracking
-- **Report History**: Saved analysis and report management
-- **User Preferences**: Customizable dashboard settings
-
-## 💼 Professional Applications
-
-This project demonstrates expertise directly applicable to:
-
-### Investment Banking
-- **Financial Modeling**: DCF, comparable analysis, and sensitivity testing
-- **Valuation**: Multiple valuation methodologies and peer benchmarking
-- **Due Diligence**: Comprehensive financial analysis and risk assessment
-
-### Asset Management
-- **Portfolio Optimization**: Modern Portfolio Theory and risk management
-- **Risk Analysis**: VaR, stress testing, and Monte Carlo simulations
-- **Performance Attribution**: Portfolio vs benchmark analysis
-
-### Quantitative Finance
-- **Statistical Analysis**: Regression, correlation, and hypothesis testing
-- **Time Series Analysis**: ARIMA, GARCH, and forecasting models
-- **Risk Modeling**: Advanced risk metrics and scenario analysis
-
-### Financial Technology
-- **Full-Stack Development**: Web application with real-time data integration
-- **Data Science**: Statistical analysis and machine learning applications
-- **API Integration**: Multiple financial data sources and services
-
-## 🛠️ Installation & Setup
-
-### Prerequisites
-- Python 3.8 or higher
-- pip package manager
-- Git
-
-### Quick Start
+The modern React TypeScript implementation is the **primary and recommended** version:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/equity-research-dashboard.git
-cd equity-research-dashboard
+# Navigate to the modern implementation
+cd v2-modern
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### **Legacy Implementation (v1)**
+
+The legacy Python Flask/Dash implementation is maintained for historical reference:
+
+```bash
+# Navigate to the legacy implementation
+cd v1-legacy
 
 # Create virtual environment
 python -m venv venv
-. venv\Scripts\activate  #On Mac/Linux use: source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Run the application
 python run.py
+
+# Open http://localhost:5000
 ```
 
-### Environment Configuration (Optional)
-Create a `.env` file for enhanced features:
-```env
-# API Keys (optional - yfinance works without keys)
-ALPHA_VANTAGE_API_KEY=your_key_here
-FINANCIAL_MODELING_PREP_API_KEY=your_key_here
-NEWS_API_KEY=your_key_here
+## 📁 Repository Structure
 
-# Application Settings
-SECRET_KEY=your_secret_key_here
-DEBUG=True
+```
+equity-research-dashboard/
+├── 📚 docs/                   # Unified documentation
+│   ├── README.md              # This file
+│   ├── ARCHITECTURE.md        # Technical architecture
+│   ├── API.md                 # API documentation
+│   └── DEPLOYMENT.md          # Deployment guides
+│
+├── 🚀 v2-modern/              # Modern React/TypeScript implementation (RECOMMENDED)
+│   ├── README.md              # Modern version documentation
+│   ├── src/                   # React components
+│   ├── public/                # Static assets
+│   ├── package.json           # Node.js dependencies
+│   └── vite.config.ts         # Build configuration
+│
+├── 🏗️ v1-legacy/              # Legacy Python/Dash implementation
+│   ├── README.md              # Legacy version documentation
+│   ├── app/                   # Flask/Dash backend
+│   ├── analysis/              # Financial analysis modules
+│   ├── data/                  # Data layer
+│   ├── visualizations/        # Chart generation
+│   ├── models/                # Financial models
+│   ├── tests/                 # Test suite
+│   ├── templates/             # Jinja2 templates
+│   ├── static/                # CSS/JS assets
+│   └── requirements.txt       # Python dependencies
+│
+├── 🔧 shared/                 # Shared resources
+│   ├── assets/                # Shared images, icons
+│   ├── data/                  # Sample data, fixtures
+│   └── scripts/               # Build, deployment scripts
+│
+├── 📄 LICENSE                 # Project license
+└── 📄 .gitignore              # Git ignore rules
 ```
 
-## 📖 Usage Guide
+## 🏗️ Architecture & Tech Stack
 
-### Market Dashboard
-1. **Real-time Overview**: Monitor live market indices and sector performance
-2. **Top Movers**: Track daily gainers and losers with volume analysis
-3. **Market Sentiment**: Analyze VIX and market breadth indicators
+### **Modern Implementation (v2) - RECOMMENDED**
 
-### Stock Analysis
-1. **Enter Symbol**: Search any stock ticker (e.g., AAPL, GOOGL, TSLA)
-2. **Financial Metrics**: View comprehensive ratio analysis
-3. **Technical Analysis**: Access 20+ technical indicators
-4. **Valuation Models**: Run DCF, DDM, and comparable analysis
-5. **Risk Assessment**: Analyze beta, VaR, and volatility metrics
+#### Frontend Framework
+- **React 18** - Component-based architecture with concurrent rendering
+- **TypeScript** - Type safety and better IDE support
+- **Vite** - Lightning-fast build tool and dev server
 
-### Portfolio Optimization
-1. **Stock Selection**: Add multiple stocks to your portfolio
-2. **Optimization Method**: Choose from Max Sharpe, Min Vol, Equal Weight
-3. **Risk Constraints**: Set custom risk parameters
-4. **Performance Analysis**: View expected returns, volatility, Sharpe ratio
-5. **Visualization**: Explore allocation charts and efficient frontier
+#### State Management
+- **Zustand** - Lightweight, simple state management
+- **React Query** - Server state management, caching, background updates
 
-### Research Reports
-1. **Report Types**: Generate full analysis, valuation, risk, or peer reports
-2. **Automated Insights**: Get comprehensive investment recommendations
-3. **Export Options**: Save and share professional reports
-4. **Custom Analysis**: Tailored investment thesis and recommendations
+#### UI Framework
+- **Tailwind CSS** - Utility-first CSS framework
+- **Headless UI** - Unstyled, accessible UI components
+- **Framer Motion** - Smooth animations and transitions
 
-## 🧪 Testing & Quality Assurance
+#### Charts & Visualization
+- **Recharts** - React-native charting library
+- **D3.js** - Custom visualizations for complex financial charts
 
-### Running Tests
-```bash
-# Run all tests
-pytest
+#### Development & Quality
+- **ESLint + Prettier** - Code quality and formatting
+- **Jest + React Testing Library** - Comprehensive testing
+- **TypeScript** - Full type safety throughout
 
-# Run with coverage report
-pytest --cov=. --cov-report=html
+### **Legacy Implementation (v1)**
 
-# Run specific test modules
-pytest tests/test_analysis.py
-pytest tests/test_models.py
-pytest tests/test_data.py
-```
+#### Backend Framework
+- **Python 3.8+** - Core programming language
+- **Dash/Flask** - Web framework for interactive applications
+- **Flask-Login** - Secure user authentication system
+- **SQLite** - Database for user management and data persistence
 
-### Code Quality
-```bash
-# Format code
-black .
+#### Financial Analysis & Modeling
+- **yfinance** - Real-time financial data integration
+- **pandas/numpy** - Data manipulation and numerical computing
+- **scipy** - Scientific computing and optimization algorithms
+- **scikit-learn** - Machine learning and statistical analysis
+- **statsmodels** - Advanced statistical modeling
 
-# Lint code
-flake8 .
+#### Visualization & Frontend
+- **Plotly** - Interactive charts and dashboards
+- **Dash Bootstrap Components** - Professional UI components
+- **Custom CSS/JS** - Responsive design and user interactions
 
-# Type checking
-mypy .
-```
+## 🎯 Key Features
 
-## 📊 Technical Highlights
+### **Dashboard**
+- Real-time market data with live updates
+- Interactive charts and visualizations
+- Market sentiment analysis
+- Sector performance tracking
+- Top movers and market indices
 
-### Financial Modeling Excellence
-- **DCF Implementation**: Complete discounted cash flow with terminal value calculation
-- **Sensitivity Analysis**: Multi-variable sensitivity testing with visualization
-- **Monte Carlo Simulation**: 10,000+ scenario analysis for risk assessment
-- **Comparable Analysis**: Automated peer selection and benchmarking
+### **Portfolio Management**
+- Create and manage multiple portfolios
+- Real-time portfolio tracking
+- Performance analytics and reporting
+- Risk analysis and optimization
+- Rebalancing recommendations
 
-### Data Science & Analytics
-- **Statistical Analysis**: Regression, correlation, and hypothesis testing
-- **Time Series Analysis**: ARIMA, GARCH, and forecasting models
-- **Machine Learning**: Predictive modeling and classification algorithms
-- **Data Visualization**: Interactive charts and professional dashboards
+### **Stock Analysis**
+- **DCF Analysis**: Discounted cash flow valuation
+- **Comparable Analysis**: Peer company comparisons
+- **Risk Analysis**: VaR, stress testing, Monte Carlo simulations
+- **Technical Analysis**: Chart patterns and indicators
+- **Options Analysis**: Greeks and strategy analysis
 
-### Software Engineering
-- **Modular Architecture**: Clean separation of concerns and maintainable code
-- **Error Handling**: Comprehensive error handling and user feedback
-- **Performance Optimization**: Efficient data processing and caching
-- **Security**: Secure authentication and data validation
+### **Research Reports**
+- Automated report generation
+- Customizable templates
+- Export to PDF, Excel, Word
+- Collaboration features
+- Scheduled reports
 
-## 🎯 Career Impact
+### **Advanced Features**
+- **Real-time Data**: WebSocket integration for live updates
+- **Mobile-First**: Responsive design with touch interactions
+- **Accessibility**: WCAG 2.1 AA compliant
+- **Performance**: Optimized loading and caching
+- **Security**: JWT authentication and secure data handling
 
-This project effectively demonstrates:
+## 🚀 Getting Started
 
-### Technical Skills
-- **Advanced Python**: Object-oriented programming, decorators, context managers
-- **Financial Modeling**: DCF, comparable analysis, Monte Carlo simulations
-- **Data Science**: Statistical analysis, time series modeling, machine learning
-- **Full-Stack Development**: Web applications, databases, API integration
+### **For New Users (Recommended)**
 
-### Domain Expertise
-- **Quantitative Finance**: Portfolio theory, risk management, financial modeling
-- **Investment Analysis**: Valuation methodologies, technical analysis, risk assessment
-- **Market Understanding**: Economic indicators, sector analysis, market dynamics
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd equity-research-dashboard
+   ```
 
-### Professional Development
-- **Project Management**: Large-scale application development and organization
-- **Documentation**: Comprehensive code documentation and user guides
-- **Testing**: Extensive test coverage and quality assurance
-- **Deployment**: Production-ready application with proper configuration
+2. **Use the modern implementation**:
+   ```bash
+   cd v2-modern
+   npm install
+   npm run dev
+   ```
+
+3. **Open your browser** to `http://localhost:3000`
+
+### **For Legacy Users**
+
+1. **Navigate to legacy implementation**:
+   ```bash
+   cd v1-legacy
+   ```
+
+2. **Set up Python environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. **Run the application**:
+   ```bash
+   python run.py
+   ```
+
+4. **Open your browser** to `http://localhost:5000`
+
+## 📚 Documentation
+
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - Technical architecture and design decisions
+- **[API Documentation](docs/API.md)** - API endpoints and usage
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Migration Guide](docs/MIGRATION.md)** - Upgrading from v1 to v2
+- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute to the project
+
+## 🔄 Version Comparison
+
+| Feature | v1 Legacy | v2 Modern | Recommendation |
+|---------|-----------|-----------|----------------|
+| **Architecture** | Python Flask/Dash | React TypeScript | ✅ Use v2 |
+| **Performance** | Server-side rendering | Client-side with caching | ✅ Use v2 |
+| **User Experience** | Basic Bootstrap | Professional polish | ✅ Use v2 |
+| **Mobile Support** | Limited | Mobile-first design | ✅ Use v2 |
+| **Accessibility** | Basic | WCAG 2.1 AA compliant | ✅ Use v2 |
+| **Real-time Data** | Basic | WebSocket integration | ✅ Use v2 |
+| **Maintenance** | Deprecated | Actively maintained | ✅ Use v2 |
+
+## 🎯 Migration from v1 to v2
+
+If you're currently using the legacy implementation, see our [Migration Guide](docs/MIGRATION.md) for detailed instructions on upgrading to the modern version.
 
 ## 🤝 Contributing
 
-
-### Development Workflow
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details on how to contribute to the project.
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## ⚠️ Disclaimer
+## 🙏 Acknowledgments
 
-**Important**: This software is for educational and research purposes only. It is not intended to provide financial advice. Always consult with qualified financial professionals before making investment decisions. The authors are not responsible for any financial losses incurred through the use of this software.
+- **Financial Data**: Yahoo Finance API via yfinance
+- **Charts**: Recharts and D3.js for visualizations
+- **UI Components**: Headless UI and Tailwind CSS
+- **Icons**: Heroicons for the icon set
 
-## 📞 Support & Contact
+## 📞 Support
 
-- **GitHub Issues**: [Open an issue](https://github.com/yourusername/equity-research-dashboard/issues)
-- **Documentation**: Check the code comments and test files for usage examples
-- **Questions**: Review the comprehensive test suite for implementation details
+- **Documentation**: Check the [docs/](docs/) folder for comprehensive guides
+- **Issues**: Report bugs and request features via GitHub Issues
+- **Discussions**: Join the community discussions for questions and ideas
 
 ---
 
-
-*This project showcases professional-grade skills in financial modeling, data science, and full-stack development - perfect for demonstrating expertise to potential employers in investment banking, asset management, and quantitative finance.*
+**Note**: The modern implementation (v2) is the **primary and recommended** version. The legacy implementation (v1) is maintained for historical reference and backward compatibility.

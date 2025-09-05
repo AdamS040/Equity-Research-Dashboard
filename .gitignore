@@ -313,3 +313,21 @@ docker-compose.override.yml
 # Local development
 local_settings.py
 local_config.py
+
+# Version-specific ignores
+# v1-legacy specific
+v1-legacy/instance/
+v1-legacy/cache/
+v1-legacy/venv/
+v1-legacy/yfinance_cache.sqlite
+
+# v2-modern specific
+v2-modern/dist/
+v2-modern/.vite/
+v2-modern/coverage/
+v2-modern/.nyc_output/
+
+# Shared resources
+shared/assets/temp/
+shared/data/temp/
+shared/scripts/temp/

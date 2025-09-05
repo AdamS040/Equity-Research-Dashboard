@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, String, Text, Numeric, Integer, ForeignKey, JSON
+from sqlalchemy import Boolean, Column, DateTime, String, Text, Numeric, Integer, ForeignKey, JSON, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -241,3 +241,182 @@ class PortfolioAlert(Base):
     
     def __repr__(self) -> str:
         return f"<PortfolioAlert(id={self.id}, portfolio_id={self.portfolio_id}, type={self.alert_type})>"
+
+
+class TaxLot(Base):
+    """Tax lot model for cost basis tracking."""
+    
+    __tablename__ = "tax_lots"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Foreign keys
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolios.id"), nullable=False, index=True)
+    transaction_id = Column(UUID(as_uuid=True), ForeignKey("portfolio_transactions.id"), nullable=False, index=True)
+    
+    # Tax lot information
+    symbol = Column(String(20), nullable=False, index=True)
+    shares = Column(Numeric(15, 6), nullable=False)
+    cost_basis = Column(Numeric(15, 2), nullable=False)
+    purchase_date = Column(DateTime, nullable=False, index=True)
+    
+    # Current status
+    remaining_shares = Column(Numeric(15, 6), nullable=False)
+    current_price = Column(Numeric(10, 4), nullable=True)
+    current_value = Column(Numeric(15, 2), nullable=True)
+    unrealized_gain_loss = Column(Numeric(15, 2), nullable=True)
+    unrealized_gain_loss_percent = Column(Numeric(8, 4), nullable=True)
+    
+    # Tax information
+    holding_period_days = Column(Integer, nullable=True)
+    is_long_term = Column(Boolean, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    portfolio = relationship("Portfolio")
+    transaction = relationship("PortfolioTransaction")
+    
+    def __repr__(self) -> str:
+        return f"<TaxLot(id={self.id}, symbol={self.symbol}, shares={self.shares})>"
+
+
+class PortfolioRiskMetrics(Base):
+    """Portfolio risk metrics model for storing calculated risk data."""
+    
+    __tablename__ = "portfolio_risk_metrics"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Foreign key
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolios.id"), nullable=False, index=True)
+    
+    # Risk metrics
+    date = Column(DateTime, nullable=False, index=True)
+    beta = Column(Numeric(8, 4), nullable=True)
+    alpha = Column(Numeric(8, 6), nullable=True)
+    tracking_error = Column(Numeric(8, 6), nullable=True)
+    information_ratio = Column(Numeric(8, 4), nullable=True)
+    treynor_ratio = Column(Numeric(8, 4), nullable=True)
+    jensen_alpha = Column(Numeric(8, 6), nullable=True)
+    downside_deviation = Column(Numeric(8, 6), nullable=True)
+    upside_capture = Column(Numeric(8, 4), nullable=True)
+    downside_capture = Column(Numeric(8, 4), nullable=True)
+    correlation_with_benchmark = Column(Numeric(8, 4), nullable=True)
+    
+    # VaR metrics
+    var_95 = Column(Numeric(8, 6), nullable=True)
+    var_99 = Column(Numeric(8, 6), nullable=True)
+    cvar_95 = Column(Numeric(8, 6), nullable=True)
+    cvar_99 = Column(Numeric(8, 6), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        return f"<PortfolioRiskMetrics(id={self.id}, portfolio_id={self.portfolio_id}, date={self.date})>"
+
+
+class PortfolioAllocation(Base):
+    """Portfolio allocation model for storing allocation data."""
+    
+    __tablename__ = "portfolio_allocations"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Foreign key
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolios.id"), nullable=False, index=True)
+    
+    # Allocation data
+    date = Column(DateTime, nullable=False, index=True)
+    allocation_type = Column(String(50), nullable=False, index=True)  # sector, industry, market_cap, geographic
+    allocation_data = Column(JSON, nullable=False)  # {"Technology": 0.3, "Healthcare": 0.2, ...}
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        return f"<PortfolioAllocation(id={self.id}, portfolio_id={self.portfolio_id}, type={self.allocation_type})>"
+
+
+class PortfolioOptimization(Base):
+    """Portfolio optimization model for storing optimization results."""
+    
+    __tablename__ = "portfolio_optimizations"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Foreign key
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolios.id"), nullable=False, index=True)
+    
+    # Optimization parameters
+    optimization_method = Column(String(50), nullable=False)  # markowitz, black_litterman, etc.
+    constraints = Column(JSON, nullable=False)
+    risk_free_rate = Column(Numeric(8, 6), nullable=False)
+    
+    # Optimization results
+    optimal_weights = Column(JSON, nullable=False)  # {"AAPL": 0.3, "MSFT": 0.2, ...}
+    expected_return = Column(Numeric(8, 6), nullable=False)
+    expected_risk = Column(Numeric(8, 6), nullable=False)
+    sharpe_ratio = Column(Numeric(8, 4), nullable=False)
+    efficient_frontier = Column(JSON, nullable=True)
+    
+    # Metadata
+    calculation_time = Column(Numeric(8, 3), nullable=True)  # seconds
+    is_applied = Column(Boolean, default=False, nullable=False)
+    applied_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        return f"<PortfolioOptimization(id={self.id}, portfolio_id={self.portfolio_id}, method={self.optimization_method})>"
+
+
+class PortfolioRebalancing(Base):
+    """Portfolio rebalancing model for tracking rebalancing events."""
+    
+    __tablename__ = "portfolio_rebalancings"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    
+    # Foreign key
+    portfolio_id = Column(UUID(as_uuid=True), ForeignKey("portfolios.id"), nullable=False, index=True)
+    
+    # Rebalancing information
+    rebalancing_type = Column(String(50), nullable=False)  # threshold, scheduled, optimization
+    target_weights = Column(JSON, nullable=True)
+    rebalancing_threshold = Column(Numeric(8, 4), nullable=True)
+    
+    # Rebalancing results
+    trades_executed = Column(JSON, nullable=False)  # List of trades made
+    total_trades = Column(Integer, nullable=False)
+    estimated_cost = Column(Numeric(15, 2), nullable=True)
+    actual_cost = Column(Numeric(15, 2), nullable=True)
+    rebalancing_ratio = Column(Numeric(8, 4), nullable=True)
+    
+    # Status
+    status = Column(String(20), nullable=False, default="pending")  # pending, completed, failed
+    executed_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        return f"<PortfolioRebalancing(id={self.id}, portfolio_id={self.portfolio_id}, type={self.rebalancing_type})>"
+
+
+# Add indexes for better performance
+Index('idx_portfolio_user_created', Portfolio.user_id, Portfolio.created_at)
+Index('idx_holding_portfolio_symbol', PortfolioHolding.portfolio_id, PortfolioHolding.symbol)
+Index('idx_transaction_portfolio_date', PortfolioTransaction.portfolio_id, PortfolioTransaction.date)
+Index('idx_performance_portfolio_date', PortfolioPerformance.portfolio_id, PortfolioPerformance.date)
+Index('idx_risk_metrics_portfolio_date', PortfolioRiskMetrics.portfolio_id, PortfolioRiskMetrics.date)
+Index('idx_tax_lot_portfolio_symbol', TaxLot.portfolio_id, TaxLot.symbol)

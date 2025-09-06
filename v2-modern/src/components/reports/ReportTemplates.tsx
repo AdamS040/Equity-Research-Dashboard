@@ -1,865 +1,320 @@
-/**
- * Report Templates Component
- * 
- * Pre-built report templates with preview, custom creation, and versioning
- */
-
 import React, { useState, useCallback, useMemo } from 'react'
 import { 
-  Card, 
-  CardHeader, 
-  CardBody, 
-  Button, 
-  Input, 
-  Badge, 
-  Modal, 
-  Spinner,
-  Grid,
-  GridItem,
-  Flex,
-  Heading,
-  Text,
-  Container
-} from '../ui'
+  DocumentTextIcon, 
+  ChartBarIcon, 
+  TableCellsIcon,
+  PlusIcon,
+  EyeIcon,
+  DocumentDuplicateIcon,
+  StarIcon
+} from '@heroicons/react/24/outline'
 import { 
-  ReportTemplate, 
-  ReportSectionTemplate, 
-  ReportChartTemplate, 
-  ReportTableTemplate,
-  ValidationResult 
-} from '../../types/reports'
-import { templateUtils } from '../../utils/reports'
-import { useReportTemplates, useCreateFromTemplate, useSaveAsTemplate } from '../../hooks/api/useReports'
+  Button, 
+  Card, 
+  Badge, 
+  Input, 
+  Spinner, 
+  ErrorDisplay, 
+  Heading, 
+  Text,
+  useAccessibility
+} from '../ui'
+import { clsx } from 'clsx'
+
+interface ReportTemplate {
+  id: string
+  name: string
+  description: string
+  type: string
+  category: string
+  tags: string[]
+  usage_count: number
+  rating: number
+}
 
 interface ReportTemplatesProps {
   onSelectTemplate?: (template: ReportTemplate) => void
   onCreateCustom?: () => void
-  onEditTemplate?: (template: ReportTemplate) => void
-  showCreateButton?: boolean
-  showEditButton?: boolean
-  filterByType?: string
-  filterByCategory?: string
+  onClose?: () => void
 }
 
-export const ReportTemplates: React.FC<ReportTemplatesProps> = ({
+const ReportTemplates: React.FC<ReportTemplatesProps> = ({
   onSelectTemplate,
   onCreateCustom,
-  onEditTemplate,
-  showCreateButton = true,
-  showEditButton = false,
-  filterByType,
-  filterByCategory,
+  onClose
 }) => {
+  const { reducedMotion } = useAccessibility()
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<ReportTemplate | null>(null)
-  const [sortBy, setSortBy] = useState<'name' | 'rating' | 'usage' | 'created'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // API hooks
-  const { data: templates = [], isLoading, error } = useReportTemplates(filterByType)
-  const createFromTemplateMutation = useCreateFromTemplate()
-  const saveAsTemplateMutation = useSaveAsTemplate()
+  // Mock data
+  const templates = useMemo((): ReportTemplate[] => [
+    {
+      id: '1',
+      name: 'Portfolio Performance Report',
+      description: 'Comprehensive portfolio analysis with performance metrics and charts',
+      type: 'portfolio_performance',
+      category: 'portfolio',
+      tags: ['portfolio', 'performance', 'analysis'],
+      usage_count: 1250,
+      rating: 4.8
+    },
+    {
+      id: '2',
+      name: 'Risk Analysis Report',
+      description: 'Detailed risk assessment with VaR and stress testing',
+      type: 'risk_analysis',
+      category: 'risk',
+      tags: ['risk', 'var', 'stress-testing'],
+      usage_count: 890,
+      rating: 4.6
+    },
+    {
+      id: '3',
+      name: 'DCF Valuation Report',
+      description: 'Discounted Cash Flow analysis with sensitivity analysis',
+      type: 'dcf_analysis',
+      category: 'valuation',
+      tags: ['dcf', 'valuation', 'cash-flow'],
+      usage_count: 650,
+      rating: 4.7
+    }
+  ], [])
 
-  // Filter and sort templates
+  const categories = useMemo(() => [
+    { id: 'all', name: 'All Categories' },
+    { id: 'portfolio', name: 'Portfolio' },
+    { id: 'risk', name: 'Risk' },
+    { id: 'valuation', name: 'Valuation' }
+  ], [])
+
   const filteredTemplates = useMemo(() => {
-    let filtered = templates
-
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(template =>
-        template.name.toLowerCase().includes(query) ||
-        template.description.toLowerCase().includes(query) ||
-        template.tags.some(tag => tag.toLowerCase().includes(query))
-      )
-    }
-
-    // Apply category filter
-    if (filterByCategory) {
-      filtered = filtered.filter(template => template.category === filterByCategory)
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-          break
-        case 'rating':
-          aValue = a.rating
-          bValue = b.rating
-          break
-        case 'usage':
-          aValue = a.usageCount
-          bValue = b.usageCount
-          break
-        case 'created':
-          aValue = new Date(a.createdAt)
-          bValue = new Date(b.createdAt)
-          break
-        default:
-          aValue = a.name.toLowerCase()
-          bValue = b.name.toLowerCase()
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-      return 0
+    return templates.filter(template => {
+      const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           template.description.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory
+      return matchesSearch && matchesCategory
     })
+  }, [templates, searchQuery, selectedCategory])
 
-    return filtered
-  }, [templates, searchQuery, filterByCategory, sortBy, sortOrder])
-
-  // Template actions
-  const handleSelectTemplate = useCallback((template: ReportTemplate) => {
-    if (onSelectTemplate) {
-      onSelectTemplate(template)
-    } else {
-      setSelectedTemplate(template)
-      setShowPreview(true)
+  const getTypeIcon = useCallback((type: string) => {
+    switch (type) {
+      case 'portfolio_performance': return <ChartBarIcon className="w-5 h-5" />
+      case 'risk_analysis': return <DocumentTextIcon className="w-5 h-5" />
+      case 'dcf_analysis': return <DocumentTextIcon className="w-5 h-5" />
+      default: return <DocumentTextIcon className="w-5 h-5" />
     }
-  }, [onSelectTemplate])
-
-  const handleCreateFromTemplate = useCallback(async (template: ReportTemplate) => {
-    try {
-      await createFromTemplateMutation.mutateAsync({
-        templateId: template.id,
-        data: {
-          title: `Report based on ${template.name}`,
-          type: template.type,
-        }
-      })
-      setShowPreview(false)
-    } catch (error) {
-      console.error('Failed to create report from template:', error)
-    }
-  }, [createFromTemplateMutation])
-
-  const handleEditTemplate = useCallback((template: ReportTemplate) => {
-    setEditingTemplate(template)
-    setShowEditModal(true)
   }, [])
 
-  const handleSaveTemplate = useCallback(async (templateData: Partial<ReportTemplate>) => {
-    if (!editingTemplate) return
-
-    try {
-      await saveAsTemplateMutation.mutateAsync({
-        reportId: editingTemplate.id,
-        name: templateData.name || editingTemplate.name,
-        description: templateData.description || editingTemplate.description,
-        isPublic: templateData.isPublic || false,
-      })
-      setShowEditModal(false)
-      setEditingTemplate(null)
-    } catch (error) {
-      console.error('Failed to save template:', error)
+  const getCategoryColor = useCallback((category: string) => {
+    switch (category) {
+      case 'portfolio': return 'primary'
+      case 'risk': return 'danger'
+      case 'valuation': return 'success'
+      default: return 'neutral'
     }
-  }, [editingTemplate, saveAsTemplateMutation])
+  }, [])
 
-  const handleCreateCustom = useCallback(() => {
-    if (onCreateCustom) {
-      onCreateCustom()
-    } else {
-      setShowCreateModal(true)
-    }
-  }, [onCreateCustom])
+  const renderStars = useCallback((rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <StarIcon
+        key={i}
+        className={clsx(
+          'w-4 h-4',
+          i < Math.floor(rating) ? 'text-warning-400 fill-current' : 'text-neutral-300 dark:text-neutral-600'
+        )}
+      />
+    ))
+  }, [])
 
-  if (isLoading) {
-    return (
-      <Container>
-        <Flex justify="center" align="center" style={{ height: '200px' }}>
-          <Spinner size="lg" />
-        </Flex>
-      </Container>
-    )
-  }
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value)
+  }, [])
 
-  if (error) {
-    return (
-      <Container>
-        <Card>
-          <CardBody>
-            <Text color="red">Error loading templates: {error.message}</Text>
-          </CardBody>
-        </Card>
-      </Container>
-    )
-  }
+  const handleCategoryChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedCategory(e.target.value)
+  }, [])
+
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery('')
+    setSelectedCategory('all')
+  }, [])
 
   return (
-    <Container>
+    <div className={clsx(
+      "space-y-6",
+      reducedMotion ? "" : "transition-all duration-200"
+    )}>
       {/* Header */}
-      <Flex justify="between" align="center" mb="lg">
+      <div className="flex items-center justify-between">
         <div>
-          <Heading level={2}>Report Templates</Heading>
-          <Text color="gray" size="sm">
-            Choose from pre-built templates or create your own
-          </Text>
+          <Heading level={2} size="xl" color="neutral">Report Templates</Heading>
+          <Text size="sm" color="neutral" className="mt-1">Choose from pre-built templates or create your own</Text>
         </div>
-        {showCreateButton && (
-          <Button onClick={handleCreateCustom} variant="primary">
-            Create Custom Template
+        <div className="flex items-center gap-2" role="group" aria-label="Template actions">
+          <Button 
+            variant="outline" 
+            onClick={onCreateCustom}
+            aria-label="Create custom template"
+          >
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Create Custom
           </Button>
-        )}
-      </Flex>
-
-      {/* Filters and Search */}
-      <Card mb="lg">
-        <CardBody>
-          <Grid columns={4} gap="md">
-            <GridItem>
-              <Input
-                placeholder="Search templates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                leftIcon="search"
-              />
-            </GridItem>
-            <GridItem>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-              >
-                <option value="name">Sort by Name</option>
-                <option value="rating">Sort by Rating</option>
-                <option value="usage">Sort by Usage</option>
-                <option value="created">Sort by Created</option>
-              </select>
-            </GridItem>
-            <GridItem>
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as any)}
-                style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-              >
-                <option value="asc">Ascending</option>
-                <option value="desc">Descending</option>
-              </select>
-            </GridItem>
-            <GridItem>
-              <Flex gap="sm">
-                <Button
-                  variant={viewMode === 'grid' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  Grid
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  List
-                </Button>
-              </Flex>
-            </GridItem>
-          </Grid>
-        </CardBody>
-      </Card>
-
-      {/* Templates Grid/List */}
-      {viewMode === 'grid' ? (
-        <Grid columns={3} gap="lg">
-          {filteredTemplates.map((template) => (
-            <GridItem key={template.id}>
-              <TemplateCard
-                template={template}
-                onSelect={() => handleSelectTemplate(template)}
-                onEdit={showEditButton ? () => handleEditTemplate(template) : undefined}
-              />
-            </GridItem>
-          ))}
-        </Grid>
-      ) : (
-        <div>
-          {filteredTemplates.map((template) => (
-            <TemplateListItem
-              key={template.id}
-              template={template}
-              onSelect={() => handleSelectTemplate(template)}
-              onEdit={showEditButton ? () => handleEditTemplate(template) : undefined}
-            />
-          ))}
+          {onClose && (
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              aria-label="Close templates"
+            >
+              Close
+            </Button>
+          )}
         </div>
-      )}
-
-      {/* Template Preview Modal */}
-      {showPreview && selectedTemplate && (
-        <TemplatePreviewModal
-          template={selectedTemplate}
-          onClose={() => setShowPreview(false)}
-          onCreateReport={() => handleCreateFromTemplate(selectedTemplate)}
-          isCreating={createFromTemplateMutation.isPending}
-        />
-      )}
-
-      {/* Create Custom Template Modal */}
-      {showCreateModal && (
-        <CreateTemplateModal
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleSaveTemplate}
-        />
-      )}
-
-      {/* Edit Template Modal */}
-      {showEditModal && editingTemplate && (
-        <EditTemplateModal
-          template={editingTemplate}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleSaveTemplate}
-        />
-      )}
-    </Container>
-  )
-}
-
-// Template Card Component
-interface TemplateCardProps {
-  template: ReportTemplate
-  onSelect: () => void
-  onEdit?: () => void
-}
-
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect, onEdit }) => {
-  return (
-    <Card hoverable onClick={onSelect} style={{ cursor: 'pointer', height: '100%' }}>
-      <CardHeader>
-        <Flex justify="between" align="start">
-          <div>
-            <Heading level={4} mb="xs">{template.name}</Heading>
-            <Text color="gray" size="sm">{template.description}</Text>
-          </div>
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-            >
-              Edit
-            </Button>
-          )}
-        </Flex>
-      </CardHeader>
-      <CardBody>
-        <Flex direction="column" gap="sm">
-          <Flex gap="sm" wrap>
-            <Badge variant="secondary">{template.type}</Badge>
-            <Badge variant="outline">{template.category}</Badge>
-            {template.isPublic && <Badge variant="success">Public</Badge>}
-            {template.isDefault && <Badge variant="primary">Default</Badge>}
-          </Flex>
-          
-          <Flex justify="between" align="center">
-            <Text size="sm" color="gray">
-              {template.sections.length} sections, {template.charts.length} charts
-            </Text>
-            <Flex align="center" gap="xs">
-              <span>⭐</span>
-              <Text size="sm">{template.rating.toFixed(1)}</Text>
-            </Flex>
-          </Flex>
-
-          <Flex justify="between" align="center">
-            <Text size="sm" color="gray">
-              Used {template.usageCount} times
-            </Text>
-            <Text size="sm" color="gray">
-              v{template.version}
-            </Text>
-          </Flex>
-
-          {template.tags.length > 0 && (
-            <Flex gap="xs" wrap>
-              {template.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="outline" size="sm">
-                  {tag}
-                </Badge>
-              ))}
-              {template.tags.length > 3 && (
-                <Badge variant="outline" size="sm">
-                  +{template.tags.length - 3}
-                </Badge>
-              )}
-            </Flex>
-          )}
-        </Flex>
-      </CardBody>
-    </Card>
-  )
-}
-
-// Template List Item Component
-interface TemplateListItemProps {
-  template: ReportTemplate
-  onSelect: () => void
-  onEdit?: () => void
-}
-
-const TemplateListItem: React.FC<TemplateListItemProps> = ({ template, onSelect, onEdit }) => {
-  return (
-    <Card hoverable onClick={onSelect} style={{ cursor: 'pointer', marginBottom: '16px' }}>
-      <CardBody>
-        <Flex justify="between" align="center">
-          <Flex direction="column" gap="xs" style={{ flex: 1 }}>
-            <Flex align="center" gap="md">
-              <Heading level={4}>{template.name}</Heading>
-              <Flex gap="sm">
-                <Badge variant="secondary">{template.type}</Badge>
-                <Badge variant="outline">{template.category}</Badge>
-                {template.isPublic && <Badge variant="success">Public</Badge>}
-                {template.isDefault && <Badge variant="primary">Default</Badge>}
-              </Flex>
-            </Flex>
-            <Text color="gray">{template.description}</Text>
-            <Flex gap="md" align="center">
-              <Text size="sm" color="gray">
-                {template.sections.length} sections, {template.charts.length} charts, {template.tables.length} tables
-              </Text>
-              <Flex align="center" gap="xs">
-                <span>⭐</span>
-                <Text size="sm">{template.rating.toFixed(1)}</Text>
-              </Flex>
-              <Text size="sm" color="gray">
-                Used {template.usageCount} times
-              </Text>
-              <Text size="sm" color="gray">
-                v{template.version}
-              </Text>
-            </Flex>
-            {template.tags.length > 0 && (
-              <Flex gap="xs" wrap>
-                {template.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" size="sm">
-                    {tag}
-                  </Badge>
-                ))}
-              </Flex>
-            )}
-          </Flex>
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-            >
-              Edit
-            </Button>
-          )}
-        </Flex>
-      </CardBody>
-    </Card>
-  )
-}
-
-// Template Preview Modal
-interface TemplatePreviewModalProps {
-  template: ReportTemplate
-  onClose: () => void
-  onCreateReport: () => void
-  isCreating: boolean
-}
-
-const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
-  template,
-  onClose,
-  onCreateReport,
-  isCreating,
-}) => {
-  return (
-    <Modal
-      isOpen={true}
-      onClose={onClose}
-      title={`Preview: ${template.name}`}
-      size="xl"
-    >
-      <div style={{ maxHeight: '70vh', overflow: 'auto' }}>
-        {/* Template Info */}
-        <Card mb="lg">
-          <CardBody>
-            <Grid columns={2} gap="lg">
-              <GridItem>
-                <Heading level={4} mb="sm">Template Details</Heading>
-                <Flex direction="column" gap="xs">
-                  <Text><strong>Type:</strong> {template.type}</Text>
-                  <Text><strong>Category:</strong> {template.category}</Text>
-                  <Text><strong>Version:</strong> {template.version}</Text>
-                  <Text><strong>Author:</strong> {template.author}</Text>
-                  <Text><strong>Rating:</strong> ⭐ {template.rating.toFixed(1)}</Text>
-                  <Text><strong>Usage:</strong> {template.usageCount} times</Text>
-                </Flex>
-              </GridItem>
-              <GridItem>
-                <Heading level={4} mb="sm">Description</Heading>
-                <Text>{template.description}</Text>
-                {template.tags.length > 0 && (
-                  <div style={{ marginTop: '12px' }}>
-                    <Text size="sm" color="gray" mb="xs">Tags:</Text>
-                    <Flex gap="xs" wrap>
-                      {template.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" size="sm">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </Flex>
-                  </div>
-                )}
-              </GridItem>
-            </Grid>
-          </CardBody>
-        </Card>
-
-        {/* Sections Preview */}
-        <Card mb="lg">
-          <CardHeader>
-            <Heading level={4}>Sections ({template.sections.length})</Heading>
-          </CardHeader>
-          <CardBody>
-            <div>
-              {template.sections.map((section, index) => (
-                <div key={section.id} style={{ 
-                  padding: '12px', 
-                  border: '1px solid #e5e7eb', 
-                  borderRadius: '4px',
-                  marginBottom: '8px',
-                  backgroundColor: section.required ? '#f9fafb' : '#ffffff'
-                }}>
-                  <Flex justify="between" align="center">
-                    <div>
-                      <Text weight="medium">{index + 1}. {section.title}</Text>
-                      <Text size="sm" color="gray">{section.type}</Text>
-                    </div>
-                    {section.required && (
-                      <Badge variant="warning" size="sm">Required</Badge>
-                    )}
-                  </Flex>
-                </div>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Charts Preview */}
-        {template.charts.length > 0 && (
-          <Card mb="lg">
-            <CardHeader>
-              <Heading level={4}>Charts ({template.charts.length})</Heading>
-            </CardHeader>
-            <CardBody>
-              <div>
-                {template.charts.map((chart, index) => (
-                  <div key={chart.id} style={{ 
-                    padding: '12px', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '4px',
-                    marginBottom: '8px'
-                  }}>
-                    <Flex justify="between" align="center">
-                      <div>
-                        <Text weight="medium">{index + 1}. {chart.title}</Text>
-                        <Text size="sm" color="gray">{chart.type} chart</Text>
-                      </div>
-                      {chart.required && (
-                        <Badge variant="warning" size="sm">Required</Badge>
-                      )}
-                    </Flex>
-                  </div>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        )}
-
-        {/* Tables Preview */}
-        {template.tables.length > 0 && (
-          <Card mb="lg">
-            <CardHeader>
-              <Heading level={4}>Tables ({template.tables.length})</Heading>
-            </CardHeader>
-            <CardBody>
-              <div>
-                {template.tables.map((table, index) => (
-                  <div key={table.id} style={{ 
-                    padding: '12px', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '4px',
-                    marginBottom: '8px'
-                  }}>
-                    <Flex justify="between" align="center">
-                      <div>
-                        <Text weight="medium">{index + 1}. {table.title}</Text>
-                        <Text size="sm" color="gray">Data table</Text>
-                      </div>
-                      {table.required && (
-                        <Badge variant="warning" size="sm">Required</Badge>
-                      )}
-                    </Flex>
-                  </div>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        )}
-
-        {/* Parameters Preview */}
-        {template.parameters.length > 0 && (
-          <Card mb="lg">
-            <CardHeader>
-              <Heading level={4}>Parameters ({template.parameters.length})</Heading>
-            </CardHeader>
-            <CardBody>
-              <div>
-                {template.parameters.map((param, index) => (
-                  <div key={param.id} style={{ 
-                    padding: '12px', 
-                    border: '1px solid #e5e7eb', 
-                    borderRadius: '4px',
-                    marginBottom: '8px'
-                  }}>
-                    <Flex justify="between" align="center">
-                      <div>
-                        <Text weight="medium">{param.label}</Text>
-                        <Text size="sm" color="gray">{param.type} - {param.description}</Text>
-                      </div>
-                      {param.required && (
-                        <Badge variant="error" size="sm">Required</Badge>
-                      )}
-                    </Flex>
-                  </div>
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        )}
       </div>
 
-      {/* Modal Actions */}
-      <Flex justify="end" gap="md" style={{ padding: '16px', borderTop: '1px solid #e5e7eb' }}>
-        <Button variant="outline" onClick={onClose}>
-          Close
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={onCreateReport}
-          disabled={isCreating}
-        >
-          {isCreating ? <Spinner size="sm" /> : 'Create Report'}
-        </Button>
-      </Flex>
-    </Modal>
-  )
-}
-
-// Create Template Modal
-interface CreateTemplateModalProps {
-  onClose: () => void
-  onSave: (data: Partial<ReportTemplate>) => void
-}
-
-const CreateTemplateModal: React.FC<CreateTemplateModalProps> = ({ onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: 'custom' as const,
-    category: 'equity' as const,
-    isPublic: false,
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <Modal isOpen={true} onClose={onClose} title="Create Custom Template" size="md">
-      <form onSubmit={handleSubmit}>
-        <div style={{ padding: '16px' }}>
-          <Flex direction="column" gap="md">
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                Template Name *
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter template name"
-                required
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter template description"
-                rows={3}
-                style={{ 
-                  width: '100%', 
-                  padding: '8px', 
-                  border: '1px solid #d1d5db', 
-                  borderRadius: '4px',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
-            <Grid columns={2} gap="md">
-              <GridItem>
-                <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                  Type
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-                >
-                  <option value="full">Full Analysis</option>
-                  <option value="valuation">Valuation</option>
-                  <option value="risk">Risk Analysis</option>
-                  <option value="technical">Technical Analysis</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </GridItem>
-              <GridItem>
-                <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                  Category
-                </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-                >
-                  <option value="equity">Equity</option>
-                  <option value="portfolio">Portfolio</option>
-                  <option value="market">Market</option>
-                  <option value="sector">Sector</option>
-                </select>
-              </GridItem>
-            </Grid>
-
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={formData.isPublic}
-                  onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                />
-                <span>Make this template public</span>
-              </label>
-            </div>
-          </Flex>
+      {/* Filters */}
+      <Card className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Search Templates
+            </label>
+            <Input
+              placeholder="Search by name or description..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              aria-label="Search templates"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              Category
+            </label>
+            <select
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-neutral-800 dark:text-neutral-100"
+              aria-label="Filter by category"
+            >
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              className="w-full"
+              aria-label="Clear all filters"
+            >
+              Clear Filters
+            </Button>
+          </div>
         </div>
+      </Card>
 
-        <Flex justify="end" gap="md" style={{ padding: '16px', borderTop: '1px solid #e5e7eb' }}>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit">
-            Create Template
-          </Button>
-        </Flex>
-      </form>
-    </Modal>
-  )
-}
-
-// Edit Template Modal
-interface EditTemplateModalProps {
-  template: ReportTemplate
-  onClose: () => void
-  onSave: (data: Partial<ReportTemplate>) => void
-}
-
-const EditTemplateModal: React.FC<EditTemplateModalProps> = ({ template, onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: template.name,
-    description: template.description,
-    isPublic: template.isPublic,
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <Modal isOpen={true} onClose={onClose} title="Edit Template" size="md">
-      <form onSubmit={handleSubmit}>
-        <div style={{ padding: '16px' }}>
-          <Flex direction="column" gap="md">
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                Template Name *
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter template name"
-                required
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter template description"
-                rows={3}
-                style={{ 
-                  width: '100%', 
-                  padding: '8px', 
-                  border: '1px solid #d1d5db', 
-                  borderRadius: '4px',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={formData.isPublic}
-                  onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
-                />
-                <span>Make this template public</span>
-              </label>
-            </div>
-          </Flex>
+      {/* Results */}
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
         </div>
-
-        <Flex justify="end" gap="md" style={{ padding: '16px', borderTop: '1px solid #e5e7eb' }}>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
+      ) : error ? (
+        <ErrorDisplay error={error} />
+      ) : filteredTemplates.length === 0 ? (
+        <Card className="p-12 text-center">
+          <DocumentTextIcon className="w-12 h-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+          <Heading level={3} size="lg" color="neutral" className="mb-2">No templates found</Heading>
+          <Text size="sm" color="neutral" className="mb-6">
+            Try adjusting your search criteria or create a custom template
+          </Text>
+          <Button onClick={onCreateCustom} aria-label="Create custom template">
+            <PlusIcon className="w-5 h-5 mr-2" />
+            Create Custom Template
           </Button>
-          <Button variant="primary" type="submit">
-            Save Changes
-          </Button>
-        </Flex>
-      </form>
-    </Modal>
+        </Card>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <Text size="sm" color="neutral">
+              Showing {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
+            </Text>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Report templates">
+            {filteredTemplates.map((template) => (
+              <Card 
+                key={template.id} 
+                className={clsx(
+                  "p-6 cursor-pointer",
+                  reducedMotion ? "" : "hover:shadow-lg transition-shadow duration-200"
+                )}
+                role="listitem"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    {getTypeIcon(template.type)}
+                    <div>
+                      <Heading level={3} size="sm" color="neutral" className="font-semibold">{template.name}</Heading>
+                      <Badge color={getCategoryColor(template.category)} size="sm">
+                        {template.category}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {renderStars(template.rating)}
+                    <Text size="sm" color="neutral" className="ml-1">({template.rating})</Text>
+                  </div>
+                </div>
+                
+                <Text size="sm" color="neutral" className="mb-4">
+                  {template.description}
+                </Text>
+                
+                <div className="flex flex-wrap gap-1 mb-4" role="group" aria-label="Template tags">
+                  {template.tags.slice(0, 3).map((tag, index) => (
+                    <Badge key={index} size="sm">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                
+                <div className="flex items-center justify-between text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+                  <span>Used {template.usage_count} times</span>
+                </div>
+                
+                <div className="flex gap-2" role="group" aria-label={`Actions for ${template.name}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => onSelectTemplate?.(template)}
+                    aria-label={`Use ${template.name} template`}
+                  >
+                    <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
+                    Use Template
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {/* Preview logic */}}
+                    aria-label={`Preview ${template.name} template`}
+                  >
+                    <EyeIcon className="w-4 h-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
